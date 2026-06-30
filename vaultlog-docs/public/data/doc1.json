@@ -1,0 +1,1084 @@
+{
+  "id": "doc1",
+  "title": "vaultlog",
+  "subtitle": "CLI → API → Database",
+  "phases": [
+    {
+      "id": "phase0",
+      "label": "Phase 1: CLI",
+      "chapters": [
+        {
+          "id": "s0",
+          "num": "00",
+          "title": "Result<T, E>",
+          "desc": "The full error picture",
+          "tag": "PHASE 1 · CLI Fundamentals",
+          "tagColor": "cli",
+          "content": {
+            "heading": "Result<T, E>",
+            "lead": "The foundation of Rust's error handling. There is no try/catch ; errors are values that your functions return explicitly.",
+            "intro": "In JavaScript, errors are thrown as exceptions. In Rust, errors are values that you handle like any other data. A function either succeeds with an Ok(value) or fails with an Err(error). This forces you to think about failure cases upfront.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The Result enum ; two outcomes"
+              },
+              {
+                "type": "code",
+                "text": "enum Result<T, E> {\n    Ok(T),   // Success ; holds the value of type T\n    Err(E),  // Failure ; holds the error of type E\n}"
+              },
+              {
+                "type": "p",
+                "text": "Any function that can fail returns Result<T, E>. T is the success type, E is the error type."
+              },
+              {
+                "type": "h2",
+                "text": "Comparing to JavaScript"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript try/catch",
+                  "lang": "js",
+                  "code": "async function readFile(path) {\n  try {\n    const data = \n      await fs.readFile(path);\n    return data;\n  } catch(err) {\n    console.error(err);\n    throw err;\n  }\n}"
+                },
+                "right": {
+                  "label": "Rust Result",
+                  "lang": "rs",
+                  "code": "fn read_file(path: &str)\n  -> Result<String, io::Error>\n{\n  let content = \n    fs::read_to_string(path)?;\n  Ok(content)\n}"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Three ways to handle Result"
+              },
+              {
+                "type": "h3",
+                "text": "1. The ? operator (most common)"
+              },
+              {
+                "type": "code",
+                "text": "// ? propagates errors up ; if it's Err, return it\nfn read_and_parse(path: &str) \n  -> Result<i32, Box<dyn std::error::Error>>\n{\n    let content = fs::read_to_string(path)?;  // if Err, return now\n    let num = content.trim().parse::<i32>()?;  // if Err, return now\n    Ok(num)                                    // success\n}"
+              },
+              {
+                "type": "h3",
+                "text": "2. Pattern matching (when you need custom handling)"
+              },
+              {
+                "type": "code",
+                "text": "match fs::read_to_string(path) {\n    Ok(content) => {\n        println!(\"Read {} bytes\", content.len());\n        Ok(content)\n    }\n    Err(err) if err.kind() == io::ErrorKind::NotFound => {\n        // File doesn't exist ; create it\n        fs::write(path, \"default\")?;\n        Ok(\"default\".to_string())\n    }\n    Err(err) => Err(err.into()),\n}"
+              },
+              {
+                "type": "h3",
+                "text": "3. Methods on Result"
+              },
+              {
+                "type": "table",
+                "headers": ["Method", "What it does", "When to use"],
+                "rows": [
+                  [
+                    "?",
+                    "Propagate error up",
+                    "99% of the time ; most ergonomic"
+                  ],
+                  [
+                    ".unwrap()",
+                    "Get value or panic",
+                    "In tests and when you're certain it's Ok"
+                  ],
+                  [
+                    ".expect(\"msg\")",
+                    "Get value or panic with message",
+                    "Prototyping, or when panic is acceptable"
+                  ],
+                  [
+                    ".map(f)",
+                    "Transform success value",
+                    "Ok(x).map(|v| v * 2)"
+                  ],
+                  [
+                    ".map_err(f)",
+                    "Transform error value",
+                    "Convert error types"
+                  ],
+                  [
+                    ".ok_or(err)",
+                    "Convert Option to Result",
+                    "val.ok_or(\"missing\")?"
+                  ],
+                  [
+                    ".unwrap_or(default)",
+                    "Get value or default",
+                    "When you have a sensible fallback"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Box<dyn Error> ; accepting any error type"
+              },
+              {
+                "type": "p",
+                "text": "In vaultlog, your functions will return this:"
+              },
+              {
+                "type": "code",
+                "text": "fn append_entry(entry: &LogEntry)\n  -> Result<(), Box<dyn std::error::Error>>\n{\n    let mut file = fs::OpenOptions::new()\n        .create(true)\n        .append(true)\n        .open(\"ledger.ndjson\")?;\n\n    let line = serde_json::to_string(entry)?;\n    writeln!(file, \"{}\", line)?;\n    Ok(())  // explicit \"success, no value\"\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Why Box<dyn Error>?",
+                "text": "Box<dyn Error> is a \"trait object\" that can hold any error type ; io::Error, serde_json::Error, parse errors, etc. The ? operator automatically converts them. This is the pragmatic choice for beginners: \"I don't know what error types I'll encounter, just give me a box that holds them all.\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1",
+          "num": "01",
+          "title": "The ? Operator",
+          "desc": "Error propagation made easy",
+          "tag": "PHASE 1 · Error Propagation",
+          "tagColor": "cli",
+          "content": {
+            "heading": "The ? Operator",
+            "lead": "The single most important syntax in Rust error handling. It means: \"If this returns Err, immediately return that error from my function. If it's Ok, unwrap and continue.\"",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "? is syntactic sugar for early return"
+              },
+              {
+                "type": "code",
+                "text": "// Without ? ; what ? is hiding\nlet file = match fs::OpenOptions::new().open(path) {\n    Ok(f) => f,\n    Err(e) => return Err(e),  // bail out with error\n};\n\n// With ? ; one character\nlet file = fs::OpenOptions::new().open(path)?;"
+              },
+              {
+                "type": "h2",
+                "text": "Chaining ? calls"
+              },
+              {
+                "type": "p",
+                "text": "This is where ? really shines. You can chain operations without nesting:"
+              },
+              {
+                "type": "code",
+                "text": "fn process_entry(path: &str) -> Result<LogEntry, Box<dyn std::error::Error>> {\n    // Read file\n    let json = fs::read_to_string(path)?;\n    \n    // Parse JSON\n    let entry: LogEntry = serde_json::from_str(&json)?;\n    \n    // Validate timestamp is recent\n    let age = Utc::now() - entry.timestamp;\n    if age.num_days() > 7 {\n        return Err(\"Entry is too old\".into());\n    }\n    \n    // Success\n    Ok(entry)\n}"
+              },
+              {
+                "type": "p",
+                "text": "Notice there's no nesting or callback hell. Each ? either succeeds and continues, or returns an error. Clean control flow."
+              },
+              {
+                "type": "h2",
+                "text": "? only works in functions that return Result (or Option)"
+              },
+              {
+                "type": "code",
+                "text": "// ✗ This won't compile\nfn main() {\n    let content = fs::read_to_string(\"file.txt\")?;  // error! main returns ()\n}\n\n// ✓ This works\nfn main() -> Result<(), Box<dyn std::error::Error>> {\n    let content = fs::read_to_string(\"file.txt\")?;  // ok!\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Converting error types with ?"
+              },
+              {
+                "type": "p",
+                "text": "The ? operator automatically calls .into() on the error to convert it to the return type. This is why Box<dyn Error> works so well ; all standard errors implement the conversion:"
+              },
+              {
+                "type": "code",
+                "text": "fn mixed_errors() -> Result<i32, Box<dyn std::error::Error>> {\n    // io::Error\n    let content = fs::read_to_string(\"file.txt\")?;\n    \n    // serde_json::Error\n    let json: serde_json::Value = serde_json::from_str(&content)?;\n    \n    // std::num::ParseIntError\n    let num = json[\"count\"].as_str().ok_or(\"not a string\")?.parse::<i32>()?;\n    \n    Ok(num)\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "warning",
+                "head": "⚠ The ? operator consumes the error",
+                "text": "Once you use ?, the error is converted and propagated ; you can't inspect it. If you need to handle the error differently based on its type, use match instead."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s2",
+          "num": "02",
+          "title": "Pattern Matching",
+          "desc": "match, if let, while let",
+          "tag": "PHASE 1 · Control Flow",
+          "tagColor": "cli",
+          "content": {
+            "heading": "Pattern Matching",
+            "lead": "Rust's match is a supercharged switch statement. It's exhaustive ; the compiler forces you to handle every possible case.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Basic match"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript switch (fallthrough)",
+                  "lang": "js",
+                  "code": "switch(action) {\n  case \"add\":\n    doAdd();\n    break;  // forgot this?\n  case \"list\":\n    doList();\n    break;\n  default:\n    doOther();\n}"
+                },
+                "right": {
+                  "label": "Rust match (exhaustive, no fallthrough)",
+                  "lang": "rs",
+                  "code": "match action {\n    \"add\" => {\n        do_add();\n    }\n    \"list\" => {\n        do_list();\n    }\n    _ => {  // compiler requires catch-all\n        do_other();\n    }\n}"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Matching enums ; extracting data"
+              },
+              {
+                "type": "p",
+                "text": "This is where match becomes incredibly powerful. Each enum variant can hold different data, and match lets you extract it:"
+              },
+              {
+                "type": "code",
+                "text": "enum Command {\n    Add { description: String, category: String },\n    List,\n    Verify,\n}\n\nmatch cmd {\n    Command::Add { description, category } => {\n        // description and category are extracted here, ready to use\n        println!(\"Adding {} in {}\", description, category);\n    }\n    Command::List => {\n        println!(\"Listing all entries\");\n    }\n    Command::Verify => {\n        println!(\"Verifying chain\");\n    }\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Matching on Option<T>"
+              },
+              {
+                "type": "code",
+                "text": "// entries.last() returns Option<&LogEntry>\nmatch entries.last() {\n    Some(entry) => {\n        println!(\"Last entry: {}\", entry.description);\n    }\n    None => {\n        println!(\"No entries yet\");\n    }\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Matching on Result<T, E>"
+              },
+              {
+                "type": "code",
+                "text": "match fs::read_to_string(path) {\n    Ok(content) => {\n        println!(\"Read {} bytes\", content.len());\n    }\n    Err(e) => {\n        println!(\"Error: {}\", e);\n    }\n}"
+              },
+              {
+                "type": "h2",
+                "text": "if let ; single-case match"
+              },
+              {
+                "type": "p",
+                "text": "When you only care about one pattern, if let is cleaner:"
+              },
+              {
+                "type": "code",
+                "text": "// Full match ; verbose\nmatch entries.last() {\n    Some(e) => println!(\"{}\", e.hash),\n    None => {}  // do nothing\n}\n\n// if let ; cleaner\nif let Some(e) = entries.last() {\n    println!(\"{}\", e.hash);\n}"
+              },
+              {
+                "type": "h2",
+                "text": "while let ; looping until None"
+              },
+              {
+                "type": "code",
+                "text": "// Reading from an iterator while results are Some\nlet mut reader = BufReader::new(file);\nlet mut line = String::new();\n\nwhile let Ok(bytes) = reader.read_line(&mut line) {\n    if bytes == 0 break;  // EOF\n    println!(\"Line: {}\", line.trim());\n    line.clear();\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Guard clauses ; matching with conditions"
+              },
+              {
+                "type": "code",
+                "text": "match entry.timestamp {\n    // Only handle entries from the last 7 days\n    t if (Utc::now() - t).num_days() < 7 => {\n        println!(\"Recent entry\");\n    }\n    // Handle older entries differently\n    t if (Utc::now() - t).num_days() >= 7 => {\n        println!(\"Archived entry\");\n    }\n    _ => {}\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Exhaustiveness checking",
+                "text": "Rust's compiler checks that your match covers all possible cases. If you add a new enum variant, the compiler tells you everywhere you need to update your match statements. This prevents silent bugs where you forget to handle a new case."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s3",
+          "num": "03",
+          "title": "Closures & Iterators",
+          "desc": "Functional programming in Rust",
+          "tag": "PHASE 1 · Functional Programming",
+          "tagColor": "cli",
+          "content": {
+            "heading": "Closures & Iterators",
+            "lead": "Rust's closures and iterators are nearly identical to JavaScript's ; with one key difference: Rust iterators are lazy and need .collect() to run.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Closures ; like arrow functions"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript",
+                  "lang": "js",
+                  "code": "const double = x => x * 2;\nconst result = [1,2,3]\n  .map(x => x * 2)\n  .filter(x => x > 3);"
+                },
+                "right": {
+                  "label": "Rust",
+                  "lang": "rs",
+                  "code": "let double = |x| x * 2;\nlet result: Vec<_> = vec![1,2,3]\n  .iter()\n  .map(|x| x * 2)\n  .filter(|x| x > &3)\n  .collect();"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Iterator adapters are lazy"
+              },
+              {
+                "type": "p",
+                "text": "In JavaScript, .map() runs immediately. In Rust, it builds a pipeline that doesn't execute until you call .collect():"
+              },
+              {
+                "type": "code",
+                "text": "// This does NOTHING ; iterator is lazy\nlet iter = vec![1, 2, 3]\n    .iter()\n    .map(|x| {\n        println!(\"Processing {}\", x);  // never prints!\n        x * 2\n    })\n    .filter(|x| x > &3);\n\n// This executes the pipeline\nlet result: Vec<_> = iter.collect();\n// Now \"Processing\" lines print, once per element"
+              },
+              {
+                "type": "h2",
+                "text": "Common iterator methods"
+              },
+              {
+                "type": "table",
+                "headers": ["Method", "What it does", "Example"],
+                "rows": [
+                  [".map(f)", "Transform each element", "|x| x * 2"],
+                  [".filter(f)", "Keep matching elements", "|x| x > 0"],
+                  [
+                    ".filter_map(f)",
+                    "Filter + map in one",
+                    "|x| x.parse::<i32>().ok()"
+                  ],
+                  [
+                    ".for_each(f)",
+                    "Side effects, no return",
+                    "|x| println!(\"{}\", x)"
+                  ],
+                  [".find(f)", "Get first match", "|x| x == 5 → Option"],
+                  [".any(f)", "Does any match?", "|x| x > 10 → bool"],
+                  [".all(f)", "Do all match?", "|x| x > 0 → bool"],
+                  [
+                    ".fold(init, f)",
+                    "Reduce/accumulate",
+                    "0, |acc, x| acc + x"
+                  ],
+                  [".collect()", "Materialize into Vec/HashMap", "Vec<i32>"]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "filter_map ; the power pattern"
+              },
+              {
+                "type": "p",
+                "text": "In vaultlog's storage layer, you'll read entries as JSON lines and skip any that fail to parse:"
+              },
+              {
+                "type": "code",
+                "text": "let entries: Vec<LogEntry> = BufReader::new(file)\n    .lines()\n    .filter_map(|line| {\n        // Skip lines that can't be read\n        let line = line.ok()?;\n        // Skip lines that aren't valid JSON\n        serde_json::from_str(&line).ok()\n    })\n    .collect();"
+              },
+              {
+                "type": "p",
+                "text": "filter_map takes a closure that returns Option ; Some(value) is kept, None is discarded. Perfect for parsing and filtering in one step."
+              },
+              {
+                "type": "h2",
+                "text": "Closure borrowing ; move vs borrow"
+              },
+              {
+                "type": "code",
+                "text": "let multiplier = 10;\n\n// By default, closure borrows multiplier\nlet times_ten = |x| x * multiplier;\nprintln!(\"{}\", multiplier);  // ✓ still valid\n\n// Use 'move' to take ownership\nlet times_ten = move |x| x * multiplier;\n// multiplier is now owned by the closure, can't use it here"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "💡 Remember .collect()",
+                "text": "Iterators in Rust are lazy ; they're a sequence of transformations that hasn't run yet. Forgetting .collect() is one of the most common iterator mistakes. The compiler will tell you if a variable is unused, which helps catch this."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s4",
+          "num": "04",
+          "title": "Complete vaultlog CLI",
+          "desc": "Clap + pattern matching + error handling",
+          "tag": "PHASE 1 · Complete Project",
+          "tagColor": "cli",
+          "content": {
+            "heading": "Complete vaultlog CLI",
+            "lead": "Here's the full working CLI that ties together everything from Phase 1 ; error handling, pattern matching, closures, iterators, and Clap.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Project setup"
+              },
+              {
+                "type": "code",
+                "text": "cargo new vaultlog\ncd vaultlog"
+              },
+              {
+                "type": "p",
+                "text": "Update Cargo.toml:"
+              },
+              {
+                "type": "code",
+                "text": "[package]\nname = \"vaultlog\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nsha2 = \"0.10\"\nchrono = { version = \"0.4\", features = [\"serde\"] }\nclap = { version = \"4\", features = [\"derive\"] }\nuuid = { version = \"1\", features = [\"v4\"] }"
+              },
+              {
+                "type": "h2",
+                "text": "src/models.rs ; the data structures"
+              },
+              {
+                "type": "code",
+                "text": "use chrono::{DateTime, Utc};\nuse serde::{Deserialize, Serialize};\n\n#[derive(Serialize, Deserialize, Debug, Clone)]\npub struct LogEntry {\n    pub id: String,\n    pub timestamp: DateTime<Utc>,\n    pub category: EntryCategory,\n    pub description: String,\n    pub metadata: serde_json::Value,\n    pub previous_hash: String,\n    pub hash: String,\n}\n\n#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]\npub enum EntryCategory {\n    Asset,\n    Event,\n    Transfer,\n    Inspection,\n    Note,\n}"
+              },
+              {
+                "type": "h2",
+                "text": "src/ledger.rs ; hashing and verification"
+              },
+              {
+                "type": "code",
+                "text": "use sha2::{Digest, Sha256};\nuse crate::models::LogEntry;\n\npub fn compute_hash(entry: &LogEntry) -> String {\n    let mut entry_copy = entry.clone();\n    entry_copy.hash = \"\".to_string();\n    \n    let content = serde_json::to_string(&entry_copy)\n        .expect(\"Failed to serialize\");\n    \n    let mut hasher = Sha256::new();\n    hasher.update(content.as_bytes());\n    format!(\"{:x}\", hasher.finalize())\n}\n\npub fn verify_chain(entries: &[LogEntry]) -> bool {\n    for i in 1..entries.len() {\n        if entries[i].previous_hash != entries[i - 1].hash {\n            return false;\n        }\n    }\n    true\n}"
+              },
+              {
+                "type": "h2",
+                "text": "src/storage.rs ; file I/O with iterators"
+              },
+              {
+                "type": "code",
+                "text": "use std::fs::{File, OpenOptions};\nuse std::io::{BufRead, BufReader, Write};\nuse crate::models::LogEntry;\n\nconst LEDGER_FILE: &str = \"ledger.ndjson\";\n\npub fn append_entry(entry: &LogEntry) \n  -> Result<(), Box<dyn std::error::Error>>\n{\n    let mut file = OpenOptions::new()\n        .create(true)\n        .append(true)\n        .open(LEDGER_FILE)?;\n\n    let line = serde_json::to_string(entry)?;\n    writeln!(file, \"{}\", line)?;\n    Ok(())\n}\n\npub fn read_all_entries() \n  -> Result<Vec<LogEntry>, Box<dyn std::error::Error>>\n{\n    let file = File::open(LEDGER_FILE)\n        .unwrap_or_else(|_| {\n            panic!(\"ledger.ndjson not found\")\n        });\n\n    let entries = BufReader::new(file)\n        .lines()\n        .filter_map(|line| line.ok())\n        .filter_map(|line| serde_json::from_str(&line).ok())\n        .collect();\n\n    Ok(entries)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "src/main.rs ; complete CLI with Clap"
+              },
+              {
+                "type": "code",
+                "text": "mod ledger;\nmod models;\nmod storage;\n\nuse chrono::Utc;\nuse clap::{Parser, Subcommand};\nuse models::{EntryCategory, LogEntry};\nuse std::error::Error;\nuse uuid::Uuid;\n\n#[derive(Parser)]\n#[command(name = \"vaultlog\")]\n#[command(about = \"Immutable, hash-chained asset ledger\", long_about = None)]\nstruct Cli {\n    #[command(subcommand)]\n    command: Commands,\n}\n\n#[derive(Subcommand)]\nenum Commands {\n    /// Add a new entry to the ledger\n    Add {\n        #[arg(short, long)]\n        description: String,\n        #[arg(short, long)]\n        category: String,\n    },\n    /// List all entries\n    List,\n    /// Verify chain integrity\n    Verify,\n}\n\nfn main() -> Result<(), Box<dyn Error>> {\n    let cli = Cli::parse();\n\n    match cli.command {\n        Commands::Add { description, category } => {\n            handle_add(description, &category)?;\n        }\n        Commands::List => {\n            handle_list()?;\n        }\n        Commands::Verify => {\n            handle_verify()?;\n        }\n    }\n\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Running it"
+              },
+              {
+                "type": "code",
+                "text": "cargo run -- add --description \"Purchased 123 Main St\" --category asset\ncargo run -- add --description \"Inspection completed\" --category inspection\ncargo run -- list\ncargo run -- verify"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "💡 What you've built",
+                "text": "This is a complete, working CLI tool with proper error handling, file I/O, JSON serialization, command parsing, and hash chain verification. Every concept maps directly to the larger REAL project and the Axum API you'll build next."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase1",
+      "label": "Phase 2: Axum Web",
+      "chapters": [
+        {
+          "id": "s5",
+          "num": "05",
+          "title": "async/await in Rust",
+          "desc": "Tokio and async fundamentals",
+          "tag": "PHASE 2 · Async Foundations",
+          "tagColor": "axum",
+          "content": {
+            "heading": "async/await in Rust",
+            "lead": "Rust's async/await looks similar to JavaScript's, but it's built on a different foundation. Understanding this difference is crucial for web development.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "JS async is built on promises"
+              },
+              {
+                "type": "code",
+                "text": "// JavaScript: automatic executor\nasync function fetchUser(id) {\n    const res = await fetch(`/api/users/${id}`);\n    return res.json();\n}\n// The browser/Node runtime automatically schedules this"
+              },
+              {
+                "type": "h2",
+                "text": "Rust async needs a runtime"
+              },
+              {
+                "type": "p",
+                "text": "Rust's async/await is lazy ; it doesn't run until a runtime (like Tokio) executes it. This gives you fine-grained control at the cost of explicitness:"
+              },
+              {
+                "type": "code",
+                "text": "// Cargo.toml\n[dependencies]\ntokio = { version = \"1\", features = [\"full\"] }\naxum = \"0.7\"\n\n// src/main.rs\n#[tokio::main]  // macro that sets up Tokio runtime\nasync fn main() {\n    println!(\"Async main running\");\n}"
+              },
+              {
+                "type": "h2",
+                "text": "async fn returns a Future"
+              },
+              {
+                "type": "p",
+                "text": "In Rust, async fn doesn't execute immediately ; it returns a Future, which is a lazy value that does something when awaited:"
+              },
+              {
+                "type": "code",
+                "text": "// This function is lazy ; returns a Future\nasync fn fetch_entry(id: &str) -> String {\n    sleep(Duration::from_secs(1)).await;\n    format!(\"Entry {}\", id)\n}\n\n// Calling the function doesn't execute it ; just creates a Future\nlet future = fetch_entry(\"123\");\n\n// Await makes the runtime execute it\nlet result = future.await;  // Now it actually runs"
+              },
+              {
+                "type": "h2",
+                "text": "Tokio tasks ; lightweight concurrency"
+              },
+              {
+                "type": "p",
+                "text": "In Tokio, you spawn tasks instead of threads. Tasks are much cheaper:"
+              },
+              {
+                "type": "code",
+                "text": "#[tokio::main]\nasync fn main() {\n    // Spawn 100 lightweight tasks\n    let mut handles = vec![];\n\n    for i in 0..100 {\n        let handle = tokio::spawn(async move {\n            println!(\"Task {}\", i);\n        });\n        handles.push(handle);\n    }\n\n    // Wait for all to complete\n    for handle in handles {\n        handle.await.unwrap();\n    }\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Key difference from JS",
+                "text": "JS async: automatically runs with the event loop. Rust async: lazy, needs a runtime (Tokio) to execute. You have explicit control ; tasks don't start until spawned or awaited."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s6",
+          "num": "06",
+          "title": "Axum Basics",
+          "desc": "Handlers and routing",
+          "tag": "PHASE 2 · Web Framework",
+          "tagColor": "axum",
+          "content": {
+            "heading": "Axum Basics",
+            "lead": "Axum is a web framework built on Tokio. Handlers are async functions that return JSON, HTML, or custom responses. Routing is composed from handlers.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "A minimal Axum server"
+              },
+              {
+                "type": "code",
+                "text": "use axum::{\n    routing::get,\n    Router, Json,\n};\nuse serde_json::json;\nuse std::net::SocketAddr;\nuse tokio::net::TcpListener;\n\n#[tokio::main]\nasync fn main() {\n    // Define routes\n    let app = Router::new()\n        .route(\"/\", get(root))\n        .route(\"/health\", get(health));\n\n    // Bind and run\n    let listener = TcpListener::bind(\"127.0.0.1:3000\")\n        .await\n        .unwrap();\n\n    println!(\"Listening on {}\", listener.local_addr().unwrap());\n\n    axum::serve(listener, app)\n        .await\n        .unwrap();\n}\n\n// Handler ; just an async function\nasync fn root() -> Json<serde_json::Value> {\n    json!({\n        \"message\": \"Welcome to vaultlog API\"\n    })\n}\n\nasync fn health() -> Json<serde_json::Value> {\n    json!({\n        \"status\": \"ok\"\n    })\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Handlers are just async functions"
+              },
+              {
+                "type": "p",
+                "text": "A handler takes extractors as parameters and returns a response. Axum handles serialization/deserialization automatically:"
+              },
+              {
+                "type": "code",
+                "text": "// Handler with no parameters\nasync fn list_entries() -> Json<Vec<LogEntry>> {\n    let entries = get_entries_from_storage();\n    Json(entries)\n}\n\n// Handler with path parameter\nasync fn get_entry(Path(id): Path<String>) -> Json<LogEntry> {\n    find_entry(&id)\n}\n\n// Handler with request body\nasync fn add_entry(Json(payload): Json<CreateEntryRequest>) -> Json<LogEntry> {\n    let entry = create_new_entry(&payload.description, &payload.category);\n    Json(entry)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Routing ; connecting handlers to paths"
+              },
+              {
+                "type": "code",
+                "text": "let app = Router::new()\n    // GET /entries → list_entries handler\n    .route(\"/entries\", get(list_entries))\n    // POST /entries → add_entry handler\n    .route(\"/entries\", post(add_entry))\n    // GET /entries/:id → get_entry handler\n    .route(\"/entries/:id\", get(get_entry))\n    // GET /verify → verify_chain handler\n    .route(\"/verify\", get(verify_chain));"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Handler anatomy",
+                "text": "A handler is: 1. An async fn. 2. Takes zero or more extractors as parameters. 3. Returns a response type (Json, Html, String, custom Response). Axum automatically deserializes request data into extractors and serializes return types into HTTP responses."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s7",
+          "num": "07",
+          "title": "Extractors",
+          "desc": "Json, Path, Query, State",
+          "tag": "PHASE 2 · Request Handling",
+          "tagColor": "axum",
+          "content": {
+            "heading": "Extractors",
+            "lead": "Extractors are how handlers receive data from HTTP requests. Axum provides built-in extractors for JSON, path params, query strings, headers, and more.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The main extractors"
+              },
+              {
+                "type": "table",
+                "headers": ["Extractor", "Extracts", "Example use"],
+                "rows": [
+                  [
+                    "Json<T>",
+                    "Request body as JSON",
+                    "Json(payload) → deserialize to T"
+                  ],
+                  [
+                    "Path<T>",
+                    "Path parameters",
+                    "Path(id) → extract :id from /users/:id"
+                  ],
+                  [
+                    "Query<T>",
+                    "Query string params",
+                    "Query(params) → extract ?key=value"
+                  ],
+                  [
+                    "State<T>",
+                    "Shared application state",
+                    "State(db) → access shared database"
+                  ],
+                  [
+                    "HeaderMap",
+                    "Request headers",
+                    "headers → all HTTP headers"
+                  ],
+                  ["String", "Raw request body", "body: String"]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Json extractor"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(Serialize, Deserialize)]\nstruct CreateEntryRequest {\n    description: String,\n    category: String,\n}\n\n// Handler automatically deserializes JSON body\nasync fn add_entry(\n    Json(payload): Json<CreateEntryRequest>\n) -> Json<LogEntry> {\n    // payload.description and payload.category ready to use\n    let entry = create_entry(&payload.description, &payload.category);\n    Json(entry)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Path extractor"
+              },
+              {
+                "type": "code",
+                "text": "// Route defined as /entries/:id\nasync fn get_entry(\n    Path(id): Path<String>\n) -> Json<LogEntry> {\n    // id is extracted from the URL path\n    find_entry_by_id(&id)\n}\n\n// Multiple path parameters\nasync fn get_user_entry(\n    Path((user_id, entry_id)): Path<(String, String)>\n) -> Json<LogEntry> {\n    find_entry_for_user(&user_id, &entry_id)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Query extractor"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(Deserialize)]\nstruct ListQuery {\n    limit: Option<i32>,\n    offset: Option<i32>,\n    category: Option<String>,\n}\n\n// /entries?limit=10&offset=0&category=asset\nasync fn list_entries(\n    Query(params): Query<ListQuery>\n) -> Json<Vec<LogEntry>> {\n    let limit = params.limit.unwrap_or(10);\n    let offset = params.offset.unwrap_or(0);\n    \n    get_entries(limit, offset, params.category.as_deref())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Combining extractors"
+              },
+              {
+                "type": "code",
+                "text": "// Multiple extractors work together\nasync fn update_entry(\n    Path(id): Path<String>,\n    Json(payload): Json<UpdateRequest>,\n) -> Json<LogEntry> {\n    // Both id and payload are extracted automatically\n    update_entry_in_db(&id, &payload)\n}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "s8",
+          "num": "08",
+          "title": "Shared State",
+          "desc": "Arc, Mutex, and shared data",
+          "tag": "PHASE 2 · Concurrency & State",
+          "tagColor": "axum",
+          "content": {
+            "heading": "Shared State",
+            "lead": "In Axum, handlers run concurrently. To safely share data between them, you need to understand Arc (Atomic Reference Counting) and Mutex (Mutual Exclusion).",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The problem: multiple handlers, one database"
+              },
+              {
+                "type": "code",
+                "text": "// Imagine we want all handlers to access the same database\n// But handlers run concurrently ; how do we safely share it?\n\nlet app = Router::new()\n    .route(\"/entries\", post(add_entry))\n    .route(\"/entries\", get(list_entries))\n    .route(\"/verify\", get(verify));"
+              },
+              {
+                "type": "h2",
+                "text": "Arc<T> ; shared ownership"
+              },
+              {
+                "type": "p",
+                "text": "Arc stands for \"Atomic Reference Counting\". It lets multiple owners share the same value:"
+              },
+              {
+                "type": "code",
+                "text": "// Without Arc ; can't share\nlet db = Database::new();\n// db is owned here. We can't pass it to multiple handlers.\n\n// With Arc ; shared ownership\nlet db = Arc::new(Database::new());\n// Now db can be cloned and shared to many handlers\nlet db1 = db.clone();  // cheap clone, same data\nlet db2 = db.clone();  // another reference, same data"
+              },
+              {
+                "type": "h2",
+                "text": "Mutex<T> ; safe concurrent access"
+              },
+              {
+                "type": "p",
+                "text": "Mutex ensures only one task can access the data at a time:"
+              },
+              {
+                "type": "code",
+                "text": "// Without Mutex ; NOT thread-safe\nlet count = 0;\n// If two handlers try to read/write count simultaneously, undefined behavior\n\n// With Mutex ; thread-safe\nlet count = Mutex::new(0);\n\n// To access the data, you must lock it\nlet mut guard = count.lock().await;  // waits if another task holds the lock\n*guard += 1;  // now you can safely modify\ndrop(guard);  // lock is released here (or when guard goes out of scope)"
+              },
+              {
+                "type": "h2",
+                "text": "Arc<Mutex<T>> ; shared mutable state"
+              },
+              {
+                "type": "p",
+                "text": "Combine Arc and Mutex to share mutable data across async tasks:"
+              },
+              {
+                "type": "code",
+                "text": "#[tokio::main]\nasync fn main() {\n    // Create an in-memory ledger shared across handlers\n    let ledger = Arc::new(Mutex::new(Vec::<LogEntry>::new()));\n\n    let app = Router::new()\n        .route(\"/entries\", post(add_entry))\n        .route(\"/entries\", get(list_entries))\n        .with_state(ledger);\n\n    // ... serve app\n}\n\nasync fn add_entry(\n    State(ledger): State<Arc<Mutex<Vec<LogEntry>>>>,\n    Json(payload): Json<CreateEntryRequest>,\n) -> Json<LogEntry> {\n    // Lock the ledger to add an entry\n    let mut ledger = ledger.lock().await;\n    let entry = create_entry(&payload.description, &payload.category);\n    ledger.push(entry.clone());\n    Json(entry)\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "warning",
+                "head": "⚠ Holding locks across .await",
+                "text": "Never hold a Mutex lock while awaiting. The lock should be acquired, modified, and released within a single synchronous section. Holding a lock across async boundaries can cause deadlocks."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s9",
+          "num": "09",
+          "title": "CLI → API",
+          "desc": "Converting commands to routes",
+          "tag": "PHASE 2 · Complete API",
+          "tagColor": "axum",
+          "content": {
+            "heading": "CLI → API",
+            "lead": "Converting vaultlog from a CLI to a REST API. The business logic stays the same ; you're just swapping the interface from command-line to HTTP.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The conversion"
+              },
+              {
+                "type": "table",
+                "headers": ["CLI command", "HTTP API equivalent", "Handler"],
+                "rows": [
+                  [
+                    "add --description \"X\" --category Y",
+                    "POST /entries with JSON body",
+                    "add_entry"
+                  ],
+                  ["list", "GET /entries", "list_entries"],
+                  ["verify", "GET /verify", "verify_chain"],
+                  [
+                    "list --category X",
+                    "GET /entries?category=X",
+                    "list_entries (with Query)"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Axum API server for vaultlog"
+              },
+              {
+                "type": "code",
+                "text": "use axum::{\n    extract::{Path, Query, State},\n    http::StatusCode,\n    routing::{get, post},\n    Json, Router,\n};\nuse chrono::Utc;\nuse serde::{Deserialize, Serialize};\nuse std::sync::{Arc, Mutex};\nuse tokio::net::TcpListener;\nuse uuid::Uuid;\n\n// Reuse all the models and ledger logic from Phase 1\nmod models;\nmod ledger;\n\nuse models::{EntryCategory, LogEntry};\n\n#[derive(Serialize, Deserialize)]\nstruct CreateEntryRequest {\n    description: String,\n    category: String,\n}\n\n#[derive(Serialize, Deserialize)]\nstruct ListQuery {\n    category: Option<String>,\n    limit: Option<usize>,\n}\n\n#[derive(Serialize)]\nstruct VerifyResponse {\n    valid: bool,\n    message: String,\n}\n\ntype SharedLedger = Arc<Mutex<Vec<LogEntry>>>;\n\n#[tokio::main]\nasync fn main() {\n    // Shared ledger state\n    let ledger: SharedLedger = \n        Arc::new(Mutex::new(Vec::new()));\n\n    // Define routes\n    let app = Router::new()\n        .route(\"/entries\", post(add_entry))\n        .route(\"/entries\", get(list_entries))\n        .route(\"/entries/:id\", get(get_entry))\n        .route(\"/verify\", get(verify_chain))\n        .with_state(ledger);\n\n    // Run server\n    let listener = TcpListener::bind(\"127.0.0.1:3000\")\n        .await\n        .unwrap();\n\n    println!(\"vaultlog API listening on {}\", listener.local_addr().unwrap());\n\n    axum::serve(listener, app)\n        .await\n        .unwrap();\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Testing the API"
+              },
+              {
+                "type": "code",
+                "text": "// Add an entry\ncurl -X POST http://localhost:3000/entries \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"description\": \"Purchased 123 Main St\",\n    \"category\": \"asset\"\n  }'\n\n// List all entries\ncurl http://localhost:3000/entries\n\n// List by category\ncurl \"http://localhost:3000/entries?category=asset\"\n\n// Verify chain\ncurl http://localhost:3000/verify"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "💡 Business logic stays the same",
+                "text": "Your ledger.rs and models.rs from Phase 1 don't change at all. You're just wrapping them with HTTP handlers. This makes it easy to test core logic independently of the web layer."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "phase2",
+      "label": "Phase 3: Database",
+      "chapters": [
+        {
+          "id": "s10",
+          "num": "10",
+          "title": "sqlx Basics",
+          "desc": "Connecting to Supabase",
+          "tag": "PHASE 3 · Database Connectivity",
+          "tagColor": "db",
+          "content": {
+            "heading": "sqlx Basics",
+            "lead": "sqlx is an async SQL library with compile-time query checking. You write SQL, and sqlx verifies it against your database schema at compile time.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Setup with Supabase"
+              },
+              {
+                "type": "p",
+                "text": "Add to Cargo.toml:"
+              },
+              {
+                "type": "code",
+                "text": "[dependencies]\nsqlx = { version = \"0.7\", features = [\"runtime-tokio-native-tls\", \"postgres\"] }\ndotenv = \"0.15\"\ntokio = { version = \"1\", features = [\"full\"] }"
+              },
+              {
+                "type": "p",
+                "text": "Create .env:"
+              },
+              {
+                "type": "code",
+                "text": "DATABASE_URL=postgresql://user:password@host:5432/database"
+              },
+              {
+                "type": "p",
+                "text": "In Supabase, get your connection string from the \"Connect\" button in your project dashboard."
+              },
+              {
+                "type": "h2",
+                "text": "Connecting to the database"
+              },
+              {
+                "type": "code",
+                "text": "use sqlx::postgres::PgPoolOptions;\nuse std::time::Duration;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    dotenv::dotenv().ok();\n\n    let database_url = std::env::var(\"DATABASE_URL\")?;\n\n    // Create a connection pool\n    let pool = PgPoolOptions::new()\n        .max_connections(5)\n        .acquire_timeout(Duration::from_secs(30))\n        .connect(&database_url)\n        .await?;\n\n    println!(\"✓ Connected to database\");\n\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Running a simple query"
+              },
+              {
+                "type": "code",
+                "text": "use sqlx::Row;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let pool = create_pool().await?;\n\n    // Execute a raw query\n    let row = sqlx::query(\"SELECT NOW()\")\n        .fetch_one(&pool)\n        .await?;\n\n    let timestamp: chrono::DateTime<chrono::Utc> = row.get(0);\n    println!(\"Database time: {}\", timestamp);\n\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Querying into structs"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(sqlx::FromRow)]\nstruct LogEntry {\n    id: String,\n    description: String,\n    category: String,\n    hash: String,\n    previous_hash: String,\n}\n\nasync fn fetch_all_entries(\n    pool: &sqlx::postgres::PgPool\n) -> Result<Vec<LogEntry>, sqlx::Error> {\n    // sqlx::query_as automatically maps columns to struct fields\n    sqlx::query_as::<_, LogEntry>(\n        \"SELECT id, description, category, hash, previous_hash\n         FROM log_entries ORDER BY created_at DESC\"\n    )\n    .fetch_all(pool)\n    .await\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Parameterized queries (preventing SQL injection)"
+              },
+              {
+                "type": "code",
+                "text": "// NEVER do this:\n// let query = format!(\"SELECT * FROM entries WHERE id = '{}'\", user_input);\n\n// DO THIS instead (safe from SQL injection):\nasync fn find_entry_by_id(\n    id: &str,\n    pool: &sqlx::postgres::PgPool\n) -> Result<LogEntry, sqlx::Error> {\n    sqlx::query_as::<_, LogEntry>(\"SELECT * FROM log_entries WHERE id = $1\")\n        .bind(id)\n        .fetch_one(pool)\n        .await\n}"
+              },
+              {
+                "type": "p",
+                "text": "The $1, $2, etc. are placeholders. .bind() safely parameterizes the query."
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Compile-time checking",
+                "text": "If you run cargo build with DATABASE_URL set and the database online, sqlx will verify your queries at compile time. Typos in column names and type mismatches become compile errors, not runtime panics."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s11",
+          "num": "11",
+          "title": "Query Building",
+          "desc": "Compile-time checked queries",
+          "tag": "PHASE 3 · Query Patterns",
+          "tagColor": "db",
+          "content": {
+            "heading": "Query Building",
+            "lead": "Common patterns for inserting, updating, and fetching data. Every query is parameterized to prevent SQL injection.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Insert ; adding an entry"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(Serialize, Deserialize)]\nstruct NewLogEntry {\n    description: String,\n    category: String,\n}\n\nasync fn insert_entry(\n    entry: &NewLogEntry,\n    hash: &str,\n    previous_hash: &str,\n    pool: &sqlx::postgres::PgPool,\n) -> Result<String, sqlx::Error> {\n    let id = uuid::Uuid::new_v4().to_string();\n\n    sqlx::query(\n        \"INSERT INTO log_entries (id, description, category, hash, previous_hash, created_at)\n         VALUES ($1, $2, $3, $4, $5, NOW())\"\n    )\n    .bind(&id)\n    .bind(&entry.description)\n    .bind(&entry.category)\n    .bind(hash)\n    .bind(previous_hash)\n    .execute(pool)\n    .await?;\n\n    Ok(id)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Select with filtering"
+              },
+              {
+                "type": "code",
+                "text": "async fn list_entries(\n    category: Option<&str>,\n    limit: i32,\n    pool: &sqlx::postgres::PgPool,\n) -> Result<Vec<LogEntry>, sqlx::Error> {\n    let mut query = sqlx::query_as::<_, LogEntry>(\n        \"SELECT * FROM log_entries WHERE 1=1\"\n    );\n\n    // Conditionally add WHERE clause\n    if let Some(cat) = category {\n        query = sqlx::query_as::<_, LogEntry>(\n            \"SELECT * FROM log_entries WHERE category = $1 LIMIT $2\"\n        )\n        .bind(cat)\n        .bind(limit);\n    } else {\n        query = sqlx::query_as::<_, LogEntry>(\n            \"SELECT * FROM log_entries LIMIT $1\"\n        )\n        .bind(limit);\n    }\n\n    query.fetch_all(pool).await\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Update"
+              },
+              {
+                "type": "code",
+                "text": "async fn update_entry(\n    id: &str,\n    new_description: &str,\n    pool: &sqlx::postgres::PgPool,\n) -> Result<u64, sqlx::Error> {\n    let result = sqlx::query(\n        \"UPDATE log_entries SET description = $1 WHERE id = $2\"\n    )\n    .bind(new_description)\n    .bind(id)\n    .execute(pool)\n    .await?;\n\n    Ok(result.rows_affected())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Transaction ; multiple queries atomically"
+              },
+              {
+                "type": "code",
+                "text": "async fn add_entry_with_audit(\n    entry: &NewLogEntry,\n    pool: &sqlx::postgres::PgPool,\n) -> Result<String, sqlx::Error> {\n    // Start a transaction\n    let mut tx = pool.begin().await?;\n\n    // Insert entry\n    let id = uuid::Uuid::new_v4().to_string();\n    sqlx::query(\"INSERT INTO log_entries (id, description, category) VALUES ($1, $2, $3)\")\n        .bind(&id)\n        .bind(&entry.description)\n        .bind(&entry.category)\n        .execute(&mut *tx)\n        .await?;\n\n    // Insert audit log\n    sqlx::query(\"INSERT INTO audit_log (entry_id, action) VALUES ($1, 'created')\")\n        .bind(&id)\n        .execute(&mut *tx)\n        .await?;\n\n    // Commit both at once, or both rollback on error\n    tx.commit().await?;\n\n    Ok(id)\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "💡 Always use parameters ($1, $2, etc.)",
+                "text": "Never string-interpolate user input into SQL. Always use .bind() to pass parameters safely."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s12",
+          "num": "12",
+          "title": "Migrations",
+          "desc": "Schema management with sqlx",
+          "tag": "PHASE 3 · Schema Management",
+          "tagColor": "db",
+          "content": {
+            "heading": "Migrations",
+            "lead": "Migrations are versioned SQL files that define your schema. sqlx runs them in order, ensuring your database stays in sync with your code.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Setting up migrations"
+              },
+              {
+                "type": "code",
+                "text": "// Install sqlx-cli (one-time)\ncargo install sqlx-cli --no-default-features --features postgres\n\n// Create initial migration\nsqlx migrate add -r create_log_entries"
+              },
+              {
+                "type": "p",
+                "text": "This creates migrations/ directory with files like:"
+              },
+              {
+                "type": "code",
+                "text": "migrations/\n├── 20240101120000_create_log_entries.up.sql\n└── 20240101120000_create_log_entries.down.sql"
+              },
+              {
+                "type": "h2",
+                "text": "Migration files for vaultlog"
+              },
+              {
+                "type": "p",
+                "text": "migrations/20240101120000_create_log_entries.up.sql:"
+              },
+              {
+                "type": "code",
+                "text": "-- Create the main log entries table\nCREATE TABLE log_entries (\n    id UUID PRIMARY KEY,\n    description TEXT NOT NULL,\n    category TEXT NOT NULL,\n    hash VARCHAR(64) NOT NULL UNIQUE,\n    previous_hash VARCHAR(64) NOT NULL,\n    metadata JSONB DEFAULT '{}',\n    created_at TIMESTAMP DEFAULT NOW(),\n    updated_at TIMESTAMP DEFAULT NOW()\n);\n\n-- Create indexes for fast querying\nCREATE INDEX idx_category ON log_entries(category);\nCREATE INDEX idx_created_at ON log_entries(created_at DESC);\nCREATE INDEX idx_hash ON log_entries(hash);"
+              },
+              {
+                "type": "p",
+                "text": "migrations/20240101120000_create_log_entries.down.sql (rollback):"
+              },
+              {
+                "type": "code",
+                "text": "DROP TABLE IF EXISTS log_entries CASCADE;"
+              },
+              {
+                "type": "h2",
+                "text": "Running migrations"
+              },
+              {
+                "type": "code",
+                "text": "// Run all pending migrations\nsqlx migrate run --database-url $DATABASE_URL\n\n// In Rust code, run migrations on startup:\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    dotenv::dotenv().ok();\n\n    let database_url = std::env::var(\"DATABASE_URL\")?;\n    let pool = PgPoolOptions::new()\n        .connect(&database_url)\n        .await?;\n\n    // Run migrations automatically\n    sqlx::migrate!(\"./migrations\")\n        .run(&pool)\n        .await?;\n\n    println!(\"✓ Migrations complete\");\n\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Creating additional migrations"
+              },
+              {
+                "type": "code",
+                "text": "// Add an audit log table\nsqlx migrate add -r add_audit_log\n\n// Edit migrations/TIMESTAMP_add_audit_log.up.sql\nCREATE TABLE audit_log (\n    id BIGSERIAL PRIMARY KEY,\n    entry_id UUID REFERENCES log_entries(id) ON DELETE CASCADE,\n    action TEXT NOT NULL,\n    created_at TIMESTAMP DEFAULT NOW()\n);\n\n// Edit migrations/TIMESTAMP_add_audit_log.down.sql\nDROP TABLE IF EXISTS audit_log CASCADE;\n\n// Then run:\nsqlx migrate run"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 Migrations + Version Control",
+                "text": "Commit migrations to git. Each migration is versioned. New developers or CI/CD can run sqlx migrate run to get the exact schema your code expects. No more \"script to create the database\" chaos."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s13",
+          "num": "13",
+          "title": "Full Integration",
+          "desc": "Axum + sqlx + Supabase",
+          "tag": "PHASE 3 · Complete Integration",
+          "tagColor": "db",
+          "content": {
+            "heading": "Full Integration",
+            "lead": "Bringing it all together: Axum API + sqlx queries + Supabase database. The complete vaultlog REST API backed by a real database.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Project structure"
+              },
+              {
+                "type": "code",
+                "text": "vaultlog/\n├── Cargo.toml\n├── .env\n├── .sqlx\n├── migrations/\n│   └── 20240101120000_create_log_entries.up.sql\n├── src/\n│   ├── main.rs\n│   ├── models.rs\n│   ├── ledger.rs\n│   ├── handlers.rs      ← NEW\n│   └── db.rs            ← NEW"
+              },
+              {
+                "type": "h2",
+                "text": "src/models.rs ; reuse from Phase 1"
+              },
+              {
+                "type": "code",
+                "text": "use chrono::{DateTime, Utc};\nuse serde::{Deserialize, Serialize};\nuse sqlx::FromRow;\n\n#[derive(Serialize, Deserialize, Debug, Clone, FromRow)]\npub struct LogEntry {\n    pub id: String,\n    pub description: String,\n    pub category: String,\n    pub hash: String,\n    pub previous_hash: String,\n    pub metadata: serde_json::Value,\n    pub created_at: DateTime<Utc>,\n}\n\n#[derive(Serialize, Deserialize)]\npub struct CreateEntryRequest {\n    pub description: String,\n    pub category: String,\n}"
+              },
+              {
+                "type": "h2",
+                "text": "src/db.rs ; database operations"
+              },
+              {
+                "type": "code",
+                "text": "use crate::models::{CreateEntryRequest, LogEntry};\nuse sqlx::postgres::PgPool;\nuse uuid::Uuid;\n\npub async fn create_entry(\n    pool: &PgPool,\n    req: &CreateEntryRequest,\n    hash: &str,\n    previous_hash: &str,\n) -> Result<LogEntry, sqlx::Error> {\n    let id = Uuid::new_v4().to_string();\n\n    sqlx::query_as::<_, LogEntry>(\n        \"INSERT INTO log_entries\n         (id, description, category, hash, previous_hash, metadata)\n         VALUES ($1, $2, $3, $4, $5, $6)\n         RETURNING id, description, category, hash, previous_hash, metadata, created_at\"\n    )\n    .bind(&id)\n    .bind(&req.description)\n    .bind(&req.category)\n    .bind(hash)\n    .bind(previous_hash)\n    .bind(serde_json::json!({}))\n    .fetch_one(pool)\n    .await\n}"
+              },
+              {
+                "type": "h2",
+                "text": "src/main.rs ; tying it all together"
+              },
+              {
+                "type": "code",
+                "text": "mod db;\nmod handlers;\nmod ledger;\nmod models;\n\nuse axum::{\n    routing::{get, post},\n    Router,\n};\nuse sqlx::postgres::PgPoolOptions;\nuse std::time::Duration;\nuse tokio::net::TcpListener;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    dotenv::dotenv().ok();\n\n    let database_url = std::env::var(\"DATABASE_URL\")?;\n\n    // Create connection pool\n    let pool = PgPoolOptions::new()\n        .max_connections(5)\n        .acquire_timeout(Duration::from_secs(30))\n        .connect(&database_url)\n        .await?;\n\n    // Run migrations\n    sqlx::migrate!(\"./migrations\")\n        .run(&pool)\n        .await?;\n\n    println!(\"✓ Connected to database and ran migrations\");\n\n    // Create router with handlers\n    let app = Router::new()\n        .route(\"/health\", get(health))\n        .route(\"/entries\", post(handlers::add_entry))\n        .route(\"/entries\", get(handlers::list_entries))\n        .route(\"/entries/:id\", get(handlers::get_entry))\n        .route(\"/verify\", get(handlers::verify_chain))\n        .with_state(pool.clone());\n\n    // Run server\n    let listener = TcpListener::bind(\"127.0.0.1:3000\")\n        .await?;\n\n    println!(\"✓ vaultlog API listening on {}\", listener.local_addr()?);\n\n    axum::serve(listener, app)\n        .await?;\n\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Testing the complete API"
+              },
+              {
+                "type": "code",
+                "text": "// Start the server\ncargo run\n\n// In another terminal:\n\n// Health check\ncurl http://localhost:3000/health\n\n// Add entry\ncurl -X POST http://localhost:3000/entries \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"description\": \"Office purchase\", \"category\": \"asset\"}'\n\n// List all entries\ncurl http://localhost:3000/entries\n\n// Verify chain\ncurl http://localhost:3000/verify"
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🎯 You now have",
+                "text": "• A working REST API (Axum)\n• Type-safe database queries (sqlx)\n• Versioned schema with migrations\n• All the core concepts: ownership, async, error handling, pattern matching\n• A real product ready to expand"
+              },
+              {
+                "type": "h2",
+                "text": "Where to go from here"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "Authentication: Add JWT or session tokens with middleware",
+                  "Validation: Use validator crate to validate requests",
+                  "Logging: Add tracing for structured logs",
+                  "Testing: Write unit tests for handlers and db functions",
+                  "Deployment: Docker, Fly.io, Railway, or Vercel for serverless",
+                  "Frontend: React/Next.js calling your REST API"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

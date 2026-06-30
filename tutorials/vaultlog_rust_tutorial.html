@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      /* modern system font stack , clean sans-serif */
+      :root {
+        --font-sans:
+          system-ui, -apple-system, "Segoe UI", "Roboto", "Helvetica Neue",
+          "Noto Sans", sans-serif;
+        --font-mono:
+          "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", monospace;
+
+        --bg-base: #0a0c10;
+        --bg-elevated: #111318;
+        --bg-sidebar: #0c0e13;
+        --bg-code: #0f1117;
+        --bg-hover: #1a1d26;
+        --bg-active: #1e212a;
+
+        --text-primary: #edf2f7;
+        --text-secondary: #a0aec0;
+        --text-tertiary: #6b7280;
+
+        --accent-red: #e5484d;
+        --accent-red-dark: #b33a3f;
+        --accent-gold: #f0a34b;
+        --accent-mint: #3dd68c;
+        --accent-lavender: #8f7ee6;
+        --border-light: #2a2f3a;
+        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      body {
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.5;
+        display: flex;
+        min-height: 100vh;
+        font-weight: 400;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Sidebar , clean, no border, subtle bg */
+      .sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background: var(--bg-sidebar);
+        display: flex;
+        flex-direction: column;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: none;
+      }
+
+      .brand {
+        padding: 28px 20px 16px 24px;
+        border-bottom: 1px solid var(--border-light);
+      }
+
+      .brand-title {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        background: linear-gradient(135deg, #ffffff 30%, var(--accent-red) 80%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+
+      .brand-title span {
+        background: none;
+        -webkit-background-clip: unset;
+        background-clip: unset;
+        color: var(--accent-red);
+        font-weight: 700;
+      }
+
+      .brand-sub {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+        font-weight: 450;
+        letter-spacing: 0.2px;
+      }
+
+      /* progress */
+      .prog-wrap {
+        padding: 18px 20px 14px 24px;
+        border-bottom: 1px solid var(--border-light);
+      }
+
+      .prog-track {
+        height: 5px;
+        background: var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .prog-fill {
+        height: 100%;
+        background: var(--accent-red);
+        width: 10%;
+        border-radius: 12px;
+        transition: width 0.25s ease;
+      }
+
+      .prog-label {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+
+      /* navigation */
+      .nav {
+        flex: 1;
+        padding: 20px 12px 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .nb {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 14px;
+        background: transparent;
+        border: none;
+        border-radius: 14px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.18s ease;
+        font-family: var(--font-sans);
+      }
+
+      .nb:hover {
+        background: var(--bg-hover);
+        transform: translateX(2px);
+      }
+
+      .nb.active {
+        background: var(--bg-active);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+
+      .nb.active .nb-num {
+        color: var(--accent-red);
+        font-weight: 600;
+      }
+
+      .nb.active .nb-title {
+        color: white;
+        font-weight: 550;
+      }
+
+      .nb-num {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 2px 6px;
+        border-radius: 20px;
+        letter-spacing: -0.2px;
+      }
+
+      .nb-info {
+        flex: 1;
+      }
+
+      .nb-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: block;
+        line-height: 1.35;
+      }
+
+      .nb-sub {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        display: block;
+        margin-top: 4px;
+        letter-spacing: 0.2px;
+      }
+
+      /* main content area , breathable spacing */
+      .main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 40px 48px 80px 48px;
+        max-width: 880px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      section {
+        display: none;
+        animation: fadeIn 0.2s ease;
+      }
+
+      section.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* typography */
+      h1 {
+        font-size: 34px;
+        font-weight: 650;
+        letter-spacing: -0.5px;
+        margin-bottom: 12px;
+        line-height: 1.2;
+        background: linear-gradient(145deg, #fff 40%, #cbd5e6);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+
+      .lead {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 28px;
+        line-height: 1.65;
+        /* removed border-left, using subtle highlight instead */
+        padding-left: 0px;
+      }
+
+      h2 {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 36px 0 14px 0;
+        letter-spacing: -0.2px;
+        color: var(--text-primary);
+        border-bottom: none;
+        padding-bottom: 6px;
+      }
+
+      h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--accent-gold);
+        margin: 28px 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      p {
+        line-height: 1.7;
+        margin-bottom: 18px;
+        font-size: 15px;
+        color: var(--text-secondary);
+      }
+
+      ul,
+      ol {
+        padding-left: 24px;
+        margin-bottom: 20px;
+      }
+
+      li {
+        line-height: 1.7;
+        margin-bottom: 8px;
+        font-size: 15px;
+        color: var(--text-secondary);
+      }
+
+      pre {
+        background: var(--bg-code);
+        border: 1px solid var(--border-light);
+        border-radius: 20px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        margin: 20px 0 24px;
+        font-size: 13px;
+        line-height: 1.65;
+        font-family: var(--font-mono);
+        box-shadow: var(--shadow-sm);
+      }
+
+      code {
+        font-family: var(--font-mono);
+        font-size: 13px;
+      }
+
+      p code,
+      li code {
+        background: rgba(143, 126, 230, 0.15);
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 12px;
+        color: #c5b8ff;
+        font-weight: 500;
+      }
+
+      /* syntax-like styling */
+      .kw {
+        color: var(--accent-red);
+        font-weight: 500;
+      }
+      .ty {
+        color: var(--accent-gold);
+      }
+      .st {
+        color: var(--accent-mint);
+      }
+      .cm {
+        color: var(--text-tertiary);
+        font-style: italic;
+      }
+      .fn {
+        color: var(--accent-lavender);
+      }
+      .nu {
+        color: #7ab3e0;
+      }
+      .at {
+        color: var(--accent-gold);
+      }
+      .pm {
+        color: var(--accent-mint);
+      }
+
+      /* compare columns */
+      .compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 24px 0 24px;
+      }
+
+      .cmp {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid var(--border-light);
+        background: var(--bg-elevated);
+        transition: transform 0.1s ease;
+      }
+
+      .cmp-label {
+        padding: 10px 16px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border-light);
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 10px;
+        flex-shrink: 0;
+      }
+
+      .cmp.js .dot {
+        background: #f0a34b;
+        box-shadow: 0 0 4px #f0a34b;
+      }
+      .cmp.rs .dot {
+        background: var(--accent-red);
+        box-shadow: 0 0 4px #e5484d;
+      }
+      .cmp pre {
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        font-size: 12px;
+        padding: 16px;
+        background: var(--bg-code);
+      }
+
+      /* callouts , completely borderless, only background + subtle glow highlights */
+      .callout {
+        border-radius: 24px;
+        padding: 18px 22px;
+        margin: 28px 0 28px;
+        background: rgba(255, 255, 255, 0.02);
+        transition: all 0.2s ease;
+        border: none;
+        box-shadow: none;
+      }
+
+      .callout-head {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .callout p {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      /* highlight-only versions (no borders) */
+      .callout.concept {
+        background: linear-gradient(
+          120deg,
+          rgba(143, 126, 230, 0.08),
+          rgba(143, 126, 230, 0.02)
+        );
+        box-shadow: 0 0 0 1px rgba(143, 126, 230, 0.2);
+      }
+      .callout.concept .callout-head {
+        color: var(--accent-lavender);
+      }
+
+      .callout.tip {
+        background: linear-gradient(
+          120deg,
+          rgba(61, 214, 140, 0.08),
+          rgba(61, 214, 140, 0.02)
+        );
+        box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.25);
+      }
+      .callout.tip .callout-head {
+        color: var(--accent-mint);
+      }
+
+      .callout.warn {
+        background: linear-gradient(
+          120deg,
+          rgba(229, 72, 77, 0.08),
+          rgba(229, 72, 77, 0.02)
+        );
+        box-shadow: 0 0 0 1px rgba(229, 72, 77, 0.25);
+      }
+      .callout.warn .callout-head {
+        color: var(--accent-red);
+      }
+
+      .callout.js {
+        background: linear-gradient(
+          120deg,
+          rgba(240, 163, 75, 0.08),
+          rgba(240, 163, 75, 0.02)
+        );
+        box-shadow: 0 0 0 1px rgba(240, 163, 75, 0.2);
+      }
+      .callout.js .callout-head {
+        color: var(--accent-gold);
+      }
+
+      /* tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 24px 0 24px;
+        font-size: 14px;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      th {
+        background: var(--bg-elevated);
+        padding: 12px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-tertiary);
+        border-bottom: 1px solid var(--border-light);
+      }
+
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border-light);
+        vertical-align: top;
+        color: var(--text-secondary);
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* buttons & row */
+      .nav-row {
+        display: flex;
+        gap: 14px;
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-light);
+        align-items: center;
+      }
+
+      .nbtn {
+        padding: 9px 20px;
+        border-radius: 40px;
+        border: 1px solid var(--border-light);
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: var(--font-sans);
+        transition: all 0.2s ease;
+        backdrop-filter: blur(2px);
+      }
+
+      .nbtn:hover {
+        background: var(--bg-hover);
+        color: white;
+        border-color: var(--text-tertiary);
+      }
+
+      .nbtn.pri {
+        background: var(--accent-red);
+        border-color: var(--accent-red);
+        color: white;
+        box-shadow: 0 2px 6px rgba(229, 72, 77, 0.3);
+      }
+
+      .nbtn.pri:hover {
+        background: var(--accent-red-dark);
+        border-color: var(--accent-red-dark);
+        transform: scale(0.98);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 40px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        letter-spacing: 0.3px;
+      }
+
+      .tag-day {
+        background: rgba(240, 163, 75, 0.12);
+        color: #f0a34b;
+        border: none;
+      }
+
+      .tag-concept {
+        background: rgba(143, 126, 230, 0.12);
+        color: #afa9ec;
+        border: none;
+      }
+
+      /* responsive */
+      @media (max-width: 760px) {
+        .sidebar {
+          width: 220px;
+        }
+        .main {
+          padding: 28px 20px;
+        }
+        h1 {
+          font-size: 28px;
+        }
+        .compare {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          height: auto;
+          position: static;
+          border-right: none;
+        }
+        .main {
+          max-width: 100%;
+        }
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-elevated);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-light);
+        border-radius: 8px;
+      }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="brand">
+    <div class="brand-title">vault<span>log</span></div>
+    <div class="brand-sub">Rust for JS/TS developers</div>
+  </div>
+  <div class="prog-wrap">
+    <div class="prog-track"><div class="prog-fill" id="prog" style="width:10%"></div></div>
+    <div class="prog-label" id="prog-label">1 of 10 chapters</div>
+  </div>
+  <div class="nav" id="nav"></div>
+</nav>
+
+<main class="main" id="main-content">
+
+<section id="s0" class="active">
+  <div class="tag tag-concept">Orientation</div>
+  <h1>The JS → Rust mental shift</h1>
+  <p class="lead">You already think like a programmer. This guide rewires that thinking for Rust — using JavaScript and TypeScript as the translation layer throughout.</p>
+  <h2>Why Rust feels strange at first</h2>
+  <p>Every unusual piece of Rust syntax is solving a problem JavaScript handles invisibly. Once you see <em>what</em> it's solving, the syntax makes sense on its own.</p>
+  <table>
+    <thead><tr><th>JS/TS concept</th><th>Rust equivalent</th><th>Key difference</th></tr></thead>
+    <tbody>
+      <tr><td><code>package.json</code></td><td><code>Cargo.toml</code></td><td>Near-identical concept</td></tr>
+      <tr><td><code>npm</code></td><td><code>cargo</code></td><td>Also builds, runs, tests — one tool</td></tr>
+      <tr><td>TS <code>interface</code></td><td><code>struct</code></td><td>Gets methods via <code>impl</code></td></tr>
+      <tr><td>TS union types</td><td><code>enum</code></td><td>Each variant can hold data</td></tr>
+      <tr><td><code>try/catch</code></td><td><code>Result&lt;T,E&gt;</code></td><td>Errors are values, not thrown</td></tr>
+      <tr><td><code>null/undefined</code></td><td><code>Option&lt;T&gt;</code></td><td>Explicit "maybe nothing"</td></tr>
+      <tr><td><code>x =&gt; ...</code></td><td><code>|x| ...</code></td><td>Different syntax, same idea</td></tr>
+      <tr><td><code>.map().filter()</code></td><td><code>.map().filter().collect()</code></td><td>Needs <code>.collect()</code> to run</td></tr>
+    </tbody>
+  </table>
+  <h2>Four things that make Rust different</h2>
+  <p><strong>1. Compiled, not interpreted.</strong> Your code becomes native machine code before it ever runs. Many JS runtime errors simply cannot exist in compiled Rust.</p>
+  <p><strong>2. Static types — no surprises.</strong> Every value has a type the compiler knows at compile time. No <code>"5" + 5 = "55"</code> surprises.</p>
+  <p><strong>3. No garbage collector.</strong> JavaScript's GC cleans up memory in the background. Rust uses ownership rules to free memory exactly when needed — zero runtime overhead.</p>
+  <p><strong>4. Immutable by default.</strong> In JS, <code>let</code> is mutable. In Rust, <code>let</code> is <em>immutable</em>. You opt into mutation with <code>let mut</code>.</p>
+  <div class="callout concept">
+    <div class="callout-head">Key mindset</div>
+    <p>When Rust rejects your code, it's not being difficult — it's catching a bug you'd spend hours debugging at runtime. The compiler is your first line of defence. Its error messages often suggest exactly what to fix.</p>
+  </div>
+  <div class="nav-row">
+    <button class="nbtn pri" onclick="go('s1')">Start: Setup & cargo →</button>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="tag tag-day">Day 1 prep</div>
+  <h1>Setup & cargo</h1>
+  <p class="lead">Installing Rust and learning <code>cargo</code> — which is npm, webpack, and jest rolled into one binary.</p>
+  <h2>Installing Rust</h2>
+  <pre><code>curl --proto <span class="st">'=https'</span> --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre>
+  <p>This installs: <code>rustc</code> (the compiler), <code>cargo</code> (build + package manager), and <code>rustup</code> (toolchain manager). Verify:</p>
+  <pre><code>rustc --version   <span class="cm"># e.g. rustc 1.78.0</span>
+cargo --version   <span class="cm"># e.g. cargo 1.78.0</span></code></pre>
+  <h2>cargo ≈ npm (but more)</h2>
+  <table>
+    <thead><tr><th>npm</th><th>cargo</th></tr></thead>
+    <tbody>
+      <tr><td><code>npm init</code></td><td><code>cargo new vaultlog</code></td></tr>
+      <tr><td><code>package.json</code></td><td><code>Cargo.toml</code></td></tr>
+      <tr><td><code>npm install</code></td><td><code>cargo build</code></td></tr>
+      <tr><td><code>npm start</code></td><td><code>cargo run</code></td></tr>
+      <tr><td><code>npm test</code></td><td><code>cargo test</code></td></tr>
+      <tr><td>npmjs.com</td><td>crates.io</td></tr>
+    </tbody>
+  </table>
+  <h2>Create the project</h2>
+  <pre><code>cargo <span class="fn">new</span> vaultlog
+cd vaultlog</code></pre>
+  <p>This scaffolds:</p>
+  <pre><code>vaultlog/
+├── Cargo.toml     <span class="cm"># like package.json</span>
+└── src/
+    └── main.rs    <span class="cm"># entry point — like index.js</span></code></pre>
+  <h2>Cargo.toml — your package.json</h2>
+  <pre><code>[package]
+name = <span class="st">"vaultlog"</span>
+version = <span class="st">"0.1.0"</span>
+edition = <span class="st">"2021"</span>    <span class="cm"># which Rust edition (like ES2021)</span>
+
+[dependencies]
+serde = { version = <span class="st">"1"</span>, features = [<span class="st">"derive"</span>] }
+serde_json = <span class="st">"1"</span>
+sha2 = <span class="st">"0.10"</span>
+chrono = { version = <span class="st">"0.4"</span>, features = [<span class="st">"serde"</span>] }
+clap = { version = <span class="st">"4"</span>, features = [<span class="st">"derive"</span>] }
+uuid = { version = <span class="st">"1"</span>, features = [<span class="st">"v4"</span>] }</code></pre>
+  <div class="callout tip">
+    <div class="callout-head">Features in Cargo.toml</div>
+    <p>Some crates have optional features. <code>serde = { features = ["derive"] }</code> unlocks <code>#[derive(Serialize)]</code> on your structs. Think of it like opting into optional peer dependencies — you only pay for what you use.</p>
+  </div>
+  <h2>Modules — like JS files</h2>
+  <p>vaultlog splits across multiple files. Each file is a <strong>module</strong>. You declare them in <code>main.rs</code>:</p>
+  <pre><code><span class="kw">mod</span> models;   <span class="cm">// loads src/models.rs</span>
+<span class="kw">mod</span> ledger;   <span class="cm">// loads src/ledger.rs</span>
+<span class="kw">mod</span> storage;  <span class="cm">// loads src/storage.rs</span></code></pre>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s0')">← Back</button>
+    <button class="nbtn pri" onclick="go('s2')">Chapter 2: Variables & types →</button>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="tag tag-day">Day 1 · src/models.rs</div>
+  <h1>Variables & types</h1>
+  <p class="lead">Rust's type system is the foundation. Stricter than TypeScript, more explicit — but that strictness is what makes Rust safe and fast.</p>
+  <h2>let is immutable by default</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript</div>
+      <pre><code><span class="cm">// let is MUTABLE in JS</span>
+<span class="kw">let</span> count = 0;
+count = 1;  <span class="cm">// ✓ fine</span>
+
+<span class="kw">const</span> name = <span class="st">"vault"</span>;
+name = <span class="st">"x"</span>; <span class="cm">// ✗ runtime</span></code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust</div>
+      <pre><code><span class="cm">// let is IMMUTABLE in Rust!</span>
+<span class="kw">let</span> count = 0;
+count = 1;  <span class="cm">// ✗ compile error!</span>
+
+<span class="cm">// mut opts into mutability</span>
+<span class="kw">let mut</span> count = 0;
+count = 1;  <span class="cm">// ✓ fine</span></code></pre>
+    </div>
+  </div>
+  <div class="callout js">
+    <div class="callout-head">JS translation</div>
+    <p>Think of Rust's <code>let</code> as JS's <code>const</code>. Think of Rust's <code>let mut</code> as JS's <code>let</code>.</p>
+  </div>
+  <h2>Numeric types</h2>
+  <p>JS has one <code>number</code> type. Rust has many — it cares exactly how much memory a value takes and whether it can be negative:</p>
+  <table>
+    <thead><tr><th>Rust type</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>i32</code></td><td>Signed 32-bit integer (default for integers)</td></tr>
+      <tr><td><code>u32</code></td><td>Unsigned 32-bit (positive only, 0–4 billion)</td></tr>
+      <tr><td><code>i64 / u64</code></td><td>64-bit variants, larger range</td></tr>
+      <tr><td><code>f64</code></td><td>64-bit float (default for decimals)</td></tr>
+      <tr><td><code>usize</code></td><td>Pointer-sized unsigned — used for indices</td></tr>
+      <tr><td><code>bool</code></td><td>true or false</td></tr>
+    </tbody>
+  </table>
+  <h2>The two string types — this really matters</h2>
+  <table>
+    <thead><tr><th>Type</th><th>What it is</th><th>When to use</th></tr></thead>
+    <tbody>
+      <tr><td><code>&amp;str</code></td><td>Borrowed reference to a string. Fixed-size. Usually string literals.</td><td>Function params, strings you only read</td></tr>
+      <tr><td><code>String</code></td><td>Owned, heap-allocated string. Can grow, can be modified.</td><td>Struct fields, strings built at runtime</td></tr>
+    </tbody>
+  </table>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript — one string type</div>
+      <pre><code><span class="kw">const</span> a = <span class="st">"vault"</span>;
+<span class="kw">function</span> <span class="fn">greet</span>(name) {
+  <span class="kw">return</span> <span class="st">`Hi ${name}`</span>;
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust — two string types</div>
+      <pre><code><span class="kw">let</span> a: <span class="ty">&amp;str</span> = <span class="st">"vault"</span>;
+<span class="kw">let</span> b: <span class="ty">String</span> = <span class="st">"vault"</span>.to_string();
+<span class="kw">fn</span> <span class="fn">greet</span>(name: <span class="ty">&amp;str</span>) -> <span class="ty">String</span> {
+    <span class="fn">format!</span>(<span class="st">"Hi {}"</span>, name)
+}</code></pre>
+    </div>
+  </div>
+  <div class="callout concept">
+    <div class="callout-head">Rule of thumb</div>
+    <p>Use <code>String</code> for struct fields. Use <code>&amp;str</code> for function parameters where you only need to read. Convert: <code>"hello".to_string()</code> gives a <code>String</code>; <code>&amp;my_string</code> gives a <code>&amp;str</code>.</p>
+  </div>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s1')">← Setup</button>
+    <button class="nbtn pri" onclick="go('s3')">Chapter 3: Structs & enums →</button>
+  </div>
+</section>
+
+<section id="s3">
+  <div class="tag tag-day">Day 1 · src/models.rs</div>
+  <h1>Structs & enums</h1>
+  <p class="lead">These are how you model your data. Structs are TypeScript interfaces with methods. Rust enums are far more powerful than anything TypeScript has.</p>
+  <h2>Structs — typed data containers</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>TypeScript interface</div>
+      <pre><code><span class="kw">interface</span> <span class="ty">LogEntry</span> {
+  id: <span class="ty">string</span>;
+  description: <span class="ty">string</span>;
+  category: <span class="ty">EntryCategory</span>;
+  previousHash: <span class="ty">string</span>;
+  hash: <span class="ty">string</span>;
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust struct</div>
+      <pre><code><span class="kw">pub struct</span> <span class="ty">LogEntry</span> {
+    <span class="kw">pub</span> id: <span class="ty">String</span>,
+    <span class="kw">pub</span> description: <span class="ty">String</span>,
+    <span class="kw">pub</span> category: <span class="ty">EntryCategory</span>,
+    <span class="kw">pub</span> previous_hash: <span class="ty">String</span>,
+    <span class="kw">pub</span> hash: <span class="ty">String</span>,
+}</code></pre>
+    </div>
+  </div>
+  <p><code>pub</code> is like <code>export</code> in JS — everything in Rust is private by default.</p>
+  <h2>The #[derive] attribute — auto-generated code</h2>
+  <pre><code><span class="at">#[derive(Serialize, Deserialize, Debug, Clone)]</span>
+<span class="kw">pub struct</span> <span class="ty">LogEntry</span> { <span class="cm">/* ... */</span> }</code></pre>
+  <table>
+    <thead><tr><th>Derive trait</th><th>What it gives you</th></tr></thead>
+    <tbody>
+      <tr><td><code>Serialize</code></td><td>struct → JSON automatically</td></tr>
+      <tr><td><code>Deserialize</code></td><td>JSON → struct automatically</td></tr>
+      <tr><td><code>Debug</code></td><td><code>println!("{:?}", entry)</code> works</td></tr>
+      <tr><td><code>Clone</code></td><td><code>.clone()</code> deep-copies the struct</td></tr>
+    </tbody>
+  </table>
+  <div class="callout concept">
+    <div class="callout-head">Traits</div>
+    <p>A <strong>trait</strong> is Rust's version of an interface — it defines behaviour a type can have. When you <code>#[derive(...)]</code> one, Rust writes the implementation for you. When you need custom behaviour, you write it in an <code>impl</code> block.</p>
+  </div>
+  <h2>Enums — sum types with real power</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>TypeScript enum (just constants)</div>
+      <pre><code><span class="kw">enum</span> <span class="ty">Category</span> {
+  Asset = <span class="st">"ASSET"</span>,
+  Event = <span class="st">"EVENT"</span>,
+}
+<span class="cm">// Every value is just a string</span></code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust enum (variants)</div>
+      <pre><code><span class="kw">pub enum</span> <span class="ty">EntryCategory</span> {
+    Asset,
+    Event,
+    Transfer,
+    Inspection,
+    Note,
+}
+<span class="cm">// Used as: EntryCategory::Asset</span></code></pre>
+    </div>
+  </div>
+  <h3>Enums with data — where it gets interesting</h3>
+  <p>Each variant can hold completely different data. This is how the CLI <code>Commands</code> enum works:</p>
+  <pre><code><span class="kw">enum</span> <span class="ty">Commands</span> {
+    Add {
+        description: <span class="ty">String</span>,  <span class="cm">// holds two named fields</span>
+        category: <span class="ty">String</span>,
+    },
+    List,    <span class="cm">// holds nothing</span>
+    Verify,  <span class="cm">// holds nothing</span>
+}</code></pre>
+  <h3>Option&lt;T&gt; — Rust's null replacement</h3>
+  <p>Rust has no <code>null</code>. Instead, a built-in enum:</p>
+  <pre><code><span class="kw">match</span> entries.last() {
+    <span class="pm">Some</span>(entry) => println!(<span class="st">"{}"</span>, entry.description),
+    <span class="pm">None</span>        => println!(<span class="st">"No entries yet"</span>),
+}
+<span class="cm">// Compiler forces you to handle BOTH cases — no null surprises</span></code></pre>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s2')">← Variables</button>
+    <button class="nbtn pri" onclick="go('s4')">Chapter 4: Functions & methods →</button>
+  </div>
+</section>
+
+<section id="s4">
+  <div class="tag tag-day">Day 2 · src/ledger.rs</div>
+  <h1>Functions & methods</h1>
+  <p class="lead">How to write functions, attach behaviour to structs with <code>impl</code> blocks, and understand Rust's implicit-return rule.</p>
+  <h2>Defining functions</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>TypeScript</div>
+      <pre><code><span class="kw">function</span> <span class="fn">greet</span>(
+  name: <span class="ty">string</span>
+): <span class="ty">string</span> {
+  <span class="kw">return</span> <span class="st">`Hello, ${name}!`</span>;
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust</div>
+      <pre><code><span class="kw">fn</span> <span class="fn">greet</span>(name: <span class="ty">&amp;str</span>) -> <span class="ty">String</span> {
+    <span class="fn">format!</span>(<span class="st">"Hello, {}!"</span>, name)
+    <span class="cm">// No semicolon = implicit return</span>
+}</code></pre>
+    </div>
+  </div>
+  <div class="callout warn">
+    <div class="callout-head">Semicolons are semantic</div>
+    <p>In Rust, a semicolon turns an <em>expression</em> (which has a value) into a <em>statement</em> (which doesn't). The last line with no semicolon is the implicit return. Add a semicolon and you'll get: <code>expected String, found ()</code>. The fix: remove the semicolon.</p>
+  </div>
+  <h2>impl blocks — attaching methods to structs</h2>
+  <p>In JS, methods live inside classes. In Rust, data (<code>struct</code>) and behaviour (<code>impl</code>) are deliberately separate:</p>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript class</div>
+      <pre><code><span class="kw">class</span> <span class="ty">LogEntry</span> {
+  <span class="fn">constructor</span>(desc) {
+    <span class="kw">this</span>.description = desc;
+  }
+  <span class="fn">getDesc</span>() {
+    <span class="kw">return this</span>.description;
+  }
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust struct + impl</div>
+      <pre><code><span class="kw">struct</span> <span class="ty">LogEntry</span> {
+    description: <span class="ty">String</span>
+}
+<span class="kw">impl</span> <span class="ty">LogEntry</span> {
+    <span class="kw">pub fn</span> <span class="fn">get_desc</span>(&amp;<span class="kw">self</span>) -> <span class="ty">&amp;str</span> {
+        &amp;<span class="kw">self</span>.description
+    }
+}</code></pre>
+    </div>
+  </div>
+  <h3>Three flavors of self</h3>
+  <table>
+    <thead><tr><th>Syntax</th><th>Meaning</th><th>JS equivalent</th></tr></thead>
+    <tbody>
+      <tr><td><code>&amp;self</code></td><td>Borrow read-only (most common)</td><td><code>this</code> — only reading fields</td></tr>
+      <tr><td><code>&amp;mut self</code></td><td>Borrow mutably — can modify fields</td><td><code>this</code> — writing fields</td></tr>
+      <tr><td><code>self</code></td><td>Take ownership (struct is consumed)</td><td>No direct equivalent</td></tr>
+      <tr><td><em>no self</em></td><td>Associated function (like static)</td><td><code>static</code> class method</td></tr>
+    </tbody>
+  </table>
+  <h2>compute_hash — the real vaultlog function</h2>
+  <pre><code><span class="kw">pub fn</span> <span class="fn">compute_hash</span>(entry: &amp;<span class="ty">LogEntry</span>) -> <span class="ty">String</span> {
+    <span class="kw">let</span> content = serde_json::<span class="fn">to_string</span>(entry)
+        .<span class="fn">expect</span>(<span class="st">"Failed to serialize entry"</span>);
+
+    <span class="kw">let mut</span> hasher = <span class="ty">Sha256</span>::new();
+    hasher.<span class="fn">update</span>(content.as_bytes());
+    <span class="fn">format!</span>(<span class="st">"{:x}"</span>, hasher.<span class="fn">finalize</span>())
+}</code></pre>
+  <p><code>.expect("message")</code> is the quick way to crash with a message if something fails. In production you'd use <code>?</code> instead (chapter 5).</p>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s3')">← Structs</button>
+    <button class="nbtn pri" onclick="go('s5')">Chapter 5: Error handling →</button>
+  </div>
+</section>
+
+<section id="s5">
+  <div class="tag tag-day">Day 2–3 · everywhere</div>
+  <h1>Error handling</h1>
+  <p class="lead">One of the biggest mental shifts from JS. Rust has no exceptions — errors are <em>values</em> your functions return explicitly.</p>
+  <h2>Result&lt;T, E&gt; — Rust's try/catch replacement</h2>
+  <p><code>Result</code> is a built-in enum with two variants:</p>
+  <pre><code><span class="kw">enum</span> <span class="ty">Result</span>&lt;T, E&gt; {
+    <span class="pm">Ok</span>(T),   <span class="cm">// success — holds the value</span>
+    <span class="pm">Err</span>(E),  <span class="cm">// failure — holds the error</span>
+}</code></pre>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript try/catch</div>
+      <pre><code><span class="kw">async function</span> <span class="fn">readFile</span>(path) {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> data = fs.<span class="fn">readFileSync</span>(path);
+    <span class="kw">return</span> data;
+  } <span class="kw">catch</span>(err) {
+    console.<span class="fn">error</span>(err);
+  }
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust Result</div>
+      <pre><code><span class="kw">fn</span> <span class="fn">read_file</span>(path: <span class="ty">&amp;str</span>)
+  -> <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">io::Error</span>&gt;
+{
+    <span class="kw">let</span> content = fs::<span class="fn">read_to_string</span>(path)?;
+    <span class="pm">Ok</span>(content)
+}</code></pre>
+    </div>
+  </div>
+  <h2>The ? operator — error propagation made easy</h2>
+  <p>The <code>?</code> at the end of a line is the most important operator for beginners to learn. It means: "if this returns <code>Err</code>, immediately return that error from my function. If it's <code>Ok</code>, unwrap and continue."</p>
+  <pre><code><span class="cm">// Without ? — verbose</span>
+<span class="kw">let</span> file = <span class="ty">OpenOptions</span>::new().<span class="fn">open</span>(path);
+<span class="kw">let</span> file = <span class="kw">match</span> file {
+    <span class="pm">Ok</span>(f) => f,
+    <span class="pm">Err</span>(e) => <span class="kw">return</span> <span class="pm">Err</span>(e),
+};
+
+<span class="cm">// With ? — clean</span>
+<span class="kw">let</span> file = <span class="ty">OpenOptions</span>::new().<span class="fn">open</span>(path)?;</code></pre>
+  <h2>Box&lt;dyn Error&gt; — accepting any error type</h2>
+  <p>In vaultlog's storage functions you'll see this return type:</p>
+  <pre><code><span class="kw">pub fn</span> <span class="fn">append_entry</span>(entry: &amp;<span class="ty">LogEntry</span>)
+    -> <span class="ty">Result</span>&lt;(), <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Error</span>&gt;&gt;
+{
+    <span class="kw">let mut</span> file = <span class="ty">OpenOptions</span>::new()
+        .<span class="fn">create</span>(<span class="kw">true</span>)
+        .<span class="fn">append</span>(<span class="kw">true</span>)
+        .<span class="fn">open</span>(<span class="st">"ledger.ndjson"</span>)?;
+
+    <span class="kw">let</span> line = serde_json::<span class="fn">to_string</span>(entry)?;
+    <span class="fn">writeln!</span>(file, <span class="st">"{}"</span>, line)?;
+    <span class="pm">Ok</span>(())   <span class="cm">// explicit "success, no value"</span>
+}</code></pre>
+  <table>
+    <thead><tr><th>Pattern</th><th>When to use</th></tr></thead>
+    <tbody>
+      <tr><td><code>?</code></td><td>Propagate errors up — use this in almost every function</td></tr>
+      <tr><td><code>.expect("msg")</code></td><td>Panic with message — fine in prototypes, avoid in libraries</td></tr>
+      <tr><td><code>.unwrap()</code></td><td>Panic silently — only when you're certain it's Ok</td></tr>
+      <tr><td><code>match</code> on Result</td><td>When you need to handle Ok and Err differently</td></tr>
+    </tbody>
+  </table>
+  <div class="callout concept">
+    <div class="callout-head">The ()</td> unit type</div>
+    <p><code>()</code> pronounced "unit" is Rust's "no meaningful value" type. <code>Result&lt;(), E&gt;</code> means "succeeds with nothing, or fails with an error" — like a <code>void</code> function that can fail.</p>
+  </div>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s4')">← Functions</button>
+    <button class="nbtn pri" onclick="go('s6')">Chapter 6: Ownership →</button>
+  </div>
+</section>
+
+<section id="s6">
+  <div class="tag tag-day">Day 3 · the hardest part</div>
+  <h1>Ownership & borrowing</h1>
+  <p class="lead">The concept unique to Rust. There is no garbage collector — ownership rules determine exactly when memory is freed. This is what the borrow checker enforces.</p>
+  <h2>Three ownership rules</h2>
+  <ol>
+    <li>Every value in Rust has exactly one <strong>owner</strong>.</li>
+    <li>There can only ever be one owner at a time.</li>
+    <li>When the owner goes out of scope, the value is dropped (freed).</li>
+  </ol>
+  <pre><code><span class="kw">let</span> s1 = <span class="ty">String</span>::from(<span class="st">"hello"</span>);
+<span class="kw">let</span> s2 = s1;  <span class="cm">// s1 is MOVED into s2</span>
+println!(<span class="st">"{}"</span>, s1);  <span class="cm">// ✗ compile error! s1 no longer owns this</span></code></pre>
+  <div class="callout js">
+    <div class="callout-head">Why JS never does this</div>
+    <p>In JS, objects are reference-counted by the GC — multiple variables can "point" to the same data. Rust forbids this to eliminate entire classes of bugs (data races, use-after-free). The trade-off: you think about ownership explicitly.</p>
+  </div>
+  <h2>Borrowing with &amp; — read without owning</h2>
+  <p>Instead of moving, you can <em>lend</em> a value temporarily:</p>
+  <pre><code><span class="kw">fn</span> <span class="fn">compute_hash</span>(entry: &amp;<span class="ty">LogEntry</span>) -> <span class="ty">String</span> {
+    <span class="cm">// &amp;LogEntry = "I borrow this, I don't own it"</span>
+    <span class="cm">// The caller still owns `entry` after this call</span>
+    serde_json::<span class="fn">to_string</span>(entry).unwrap()
+}
+
+<span class="kw">let</span> entry = <span class="ty">LogEntry</span> { <span class="cm">/* ... */</span> };
+<span class="kw">let</span> hash = <span class="fn">compute_hash</span>(&amp;entry);  <span class="cm">// lend entry</span>
+println!(<span class="st">"{:?}"</span>, entry);  <span class="cm">// ✓ entry still valid — we only lent it</span></code></pre>
+  <h2>Borrowing rules</h2>
+  <table>
+    <thead><tr><th>Rule</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>Any number of <code>&amp;T</code> (shared borrows)</td><td>Many readers are fine simultaneously</td></tr>
+      <tr><td>Exactly one <code>&amp;mut T</code> at a time</td><td>One writer — no readers while writing</td></tr>
+      <tr><td>Cannot mix both</td><td>No reading while something is being mutated</td></tr>
+    </tbody>
+  </table>
+  <h2>Clone — explicit deep copy</h2>
+  <pre><code><span class="kw">let</span> s1 = <span class="ty">String</span>::from(<span class="st">"hello"</span>);
+<span class="kw">let</span> s2 = s1.<span class="fn">clone</span>();  <span class="cm">// explicit copy — both are valid</span>
+println!(<span class="st">"{} {}"</span>, s1, s2);  <span class="cm">// ✓ both work</span></code></pre>
+  <p>In vaultlog, <code>#[derive(Clone)]</code> on <code>LogEntry</code> lets you call <code>.clone()</code> on any entry whenever you need a second independent copy.</p>
+  <div class="callout tip">
+    <div class="callout-head">When you hit borrow checker errors</div>
+    <p>Read the error message carefully — Rust's compiler tells you exactly what the problem is and often suggests the fix. The most common fix is either: pass a reference (<code>&amp;entry</code> instead of <code>entry</code>), or clone when you genuinely need two owners (<code>entry.clone()</code>).</p>
+  </div>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s5')">← Error handling</button>
+    <button class="nbtn pri" onclick="go('s7')">Chapter 7: Iterators & closures →</button>
+  </div>
+</section>
+
+<section id="s7">
+  <div class="tag tag-day">Day 3 · src/storage.rs</div>
+  <h1>Iterators & closures</h1>
+  <p class="lead">Rust's iterator methods look a lot like JavaScript's array methods — <code>.map()</code>, <code>.filter()</code>, <code>.for_each()</code>. The main difference: they're lazy and need <code>.collect()</code>.</p>
+  <h2>Closures — like arrow functions</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript</div>
+      <pre><code><span class="cm">// Arrow function</span>
+<span class="kw">const</span> double = x => x * 2;
+[1,2,3].<span class="fn">map</span>(x => x * 2);</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust</div>
+      <pre><code><span class="cm">// Closure — pipes instead of arrows</span>
+<span class="kw">let</span> double = |x| x * 2;
+vec![1,2,3].<span class="fn">iter</span>().<span class="fn">map</span>(|x| x * 2);</code></pre>
+    </div>
+  </div>
+  <h2>Iterators are lazy — collect() runs them</h2>
+  <p>In JS, <code>.map()</code> runs immediately. In Rust, iterator chains are lazy — they build up a pipeline and do nothing until you call <code>.collect()</code>:</p>
+  <pre><code><span class="cm">// JS — runs immediately</span>
+arr.filter(x => x > 0).map(x => x * 2);
+
+<span class="cm">// Rust — builds pipeline, runs only at .collect()</span>
+<span class="kw">let</span> result: <span class="ty">Vec</span>&lt;<span class="ty">i32</span>&gt; = arr
+    .<span class="fn">iter</span>()
+    .<span class="fn">filter</span>(|x| **x > 0)
+    .<span class="fn">map</span>(|x| x * 2)
+    .<span class="fn">collect</span>();  <span class="cm">// ← this is where work happens</span></code></pre>
+  <h2>storage.rs — reading entries with iterators</h2>
+  <pre><code><span class="kw">pub fn</span> <span class="fn">read_all_entries</span>()
+    -> <span class="ty">Result</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">LogEntry</span>&gt;, <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Error</span>&gt;&gt;
+{
+    <span class="kw">let</span> file = <span class="ty">File</span>::<span class="fn">open</span>(<span class="st">"ledger.ndjson"</span>)?;
+    <span class="kw">let</span> reader = <span class="ty">BufReader</span>::new(file);
+
+    <span class="kw">let</span> entries = reader
+        .<span class="fn">lines</span>()
+        .<span class="fn">filter_map</span>(|line| line.<span class="fn">ok</span>())       <span class="cm">// skip error lines</span>
+        .<span class="fn">filter_map</span>(|line|                    <span class="cm">// skip bad JSON</span>
+            serde_json::<span class="fn">from_str</span>(&amp;line).<span class="fn">ok</span>())
+        .<span class="fn">collect</span>();                           <span class="cm">// → Vec&lt;LogEntry&gt;</span>
+
+    <span class="pm">Ok</span>(entries)
+}</code></pre>
+  <p><code>filter_map</code> is like <code>.filter().map()</code> combined — it keeps only elements where the closure returns <code>Some(value)</code> and discards <code>None</code>. It's your go-to for fallible transformations.</p>
+  <h2>Common iterator methods</h2>
+  <table>
+    <thead><tr><th>JS</th><th>Rust</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>.map(f)</code></td><td><code>.map(|x| ...)</code></td><td>Transform each element</td></tr>
+      <tr><td><code>.filter(f)</code></td><td><code>.filter(|x| ...)</code></td><td>Keep matching elements</td></tr>
+      <tr><td><code>.forEach(f)</code></td><td><code>.for_each(|x| ...)</code></td><td>Side effects, no return</td></tr>
+      <tr><td><code>.find(f)</code></td><td><code>.find(|x| ...)</code></td><td>Returns <code>Option</code></td></tr>
+      <tr><td><code>.some(f)</code></td><td><code>.any(|x| ...)</code></td><td>Returns bool</td></tr>
+      <tr><td><code>.every(f)</code></td><td><code>.all(|x| ...)</code></td><td>Returns bool</td></tr>
+      <tr><td><code>.reduce(f)</code></td><td><code>.fold(init, |acc, x| ...)</code></td><td>Fold/reduce</td></tr>
+      <tr><td><em>n/a</em></td><td><code>.collect()</code></td><td>Materialise into Vec/HashMap/etc</td></tr>
+    </tbody>
+  </table>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s6')">← Ownership</button>
+    <button class="nbtn pri" onclick="go('s8')">Chapter 8: Pattern matching →</button>
+  </div>
+</section>
+
+<section id="s8">
+  <div class="tag tag-day">Day 4 · src/main.rs</div>
+  <h1>Pattern matching</h1>
+  <p class="lead"><code>match</code> is Rust's supercharged switch statement. It's exhaustive — the compiler forces you to handle every possible case. You'll use it constantly.</p>
+  <h2>Basic match</h2>
+  <div class="compare">
+    <div class="cmp js">
+      <div class="cmp-label"><span class="dot"></span>JavaScript switch</div>
+      <pre><code><span class="kw">switch</span>(category) {
+  <span class="kw">case</span> <span class="st">"asset"</span>:
+    doAsset(); <span class="kw">break</span>;
+  <span class="kw">case</span> <span class="st">"event"</span>:
+    doEvent(); <span class="kw">break</span>;
+  <span class="kw">default</span>:
+    doOther();
+}</code></pre>
+    </div>
+    <div class="cmp rs">
+      <div class="cmp-label"><span class="dot"></span>Rust match</div>
+      <pre><code><span class="kw">match</span> category {
+    <span class="ty">EntryCategory</span>::Asset => {
+        <span class="fn">do_asset</span>();
+    }
+    <span class="ty">EntryCategory</span>::Event => {
+        <span class="fn">do_event</span>();
+    }
+    _ => <span class="fn">do_other</span>(),  <span class="cm">// catch-all</span>
+}</code></pre>
+    </div>
+  </div>
+  <h2>Matching enums with data — the CLI dispatcher</h2>
+  <p>This is the heart of vaultlog's <code>main.rs</code>. Each <code>Commands</code> variant holds different data, and <code>match</code> extracts it:</p>
+  <pre><code><span class="kw">match</span> cli.command {
+    <span class="ty">Commands</span>::Add { description, category } => {
+        <span class="cm">// description and category are extracted here</span>
+        <span class="kw">let</span> entry = <span class="fn">create_entry</span>(description, category)?;
+        storage::<span class="fn">append_entry</span>(&amp;entry)?;
+        println!(<span class="st">"✓ Entry added"</span>);
+    }
+    <span class="ty">Commands</span>::List => {
+        <span class="kw">let</span> entries = storage::<span class="fn">read_all_entries</span>()?;
+        <span class="kw">for</span> entry <span class="kw">in</span> &amp;entries {
+            println!(<span class="st">"{} | {}"</span>, entry.timestamp, entry.description);
+        }
+    }
+    <span class="ty">Commands</span>::Verify => {
+        <span class="kw">let</span> entries = storage::<span class="fn">read_all_entries</span>()?;
+        <span class="kw">if</span> ledger::<span class="fn">verify_chain</span>(&amp;entries) {
+            println!(<span class="st">"✓ Chain integrity verified"</span>);
+        } <span class="kw">else</span> {
+            println!(<span class="st">"✗ Chain is broken!"</span>);
+        }
+    }
+}</code></pre>
+  <h2>if let — matching a single variant</h2>
+  <p>When you only care about one case, <code>if let</code> is cleaner than a full <code>match</code>:</p>
+  <pre><code><span class="cm">// Full match — verbose when you only care about Some</span>
+<span class="kw">match</span> entries.last() {
+    <span class="pm">Some</span>(e) => println!(<span class="st">"{}"</span>, e.hash),
+    <span class="pm">None</span> => {}  <span class="cm">// do nothing</span>
+}
+
+<span class="cm">// if let — cleaner</span>
+<span class="kw">if let</span> <span class="pm">Some</span>(e) = entries.last() {
+    println!(<span class="st">"{}"</span>, e.hash);
+}</code></pre>
+  <h2>The Clap CLI derive pattern</h2>
+  <pre><code><span class="at">#[derive(Parser)]</span>
+<span class="at">#[command(name = "vaultlog")]</span>
+<span class="at">#[command(about = "Immutable hash-chained ledger")]</span>
+<span class="kw">struct</span> <span class="ty">Cli</span> {
+    <span class="at">#[command(subcommand)]</span>
+    command: <span class="ty">Commands</span>,
+}
+
+<span class="at">#[derive(Subcommand)]</span>
+<span class="kw">enum</span> <span class="ty">Commands</span> {
+    <span class="cm">/// Add a new entry to the ledger</span>
+    Add {
+        <span class="at">#[arg(short, long)]</span>
+        description: <span class="ty">String</span>,
+        <span class="at">#[arg(short, long)]</span>
+        category: <span class="ty">String</span>,
+    },
+    <span class="cm">/// List all entries</span>
+    List,
+    <span class="cm">/// Verify chain integrity</span>
+    Verify,
+}</code></pre>
+  <p>Clap reads those <code>#[derive]</code> and <code>#[arg]</code> annotations and generates a full CLI parser. The triple-slash comments (<code>///</code>) become help text.</p>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s7')">← Iterators</button>
+    <button class="nbtn pri" onclick="go('s9')">Chapter 9: Putting it all together →</button>
+  </div>
+</section>
+
+<section id="s9">
+  <div class="tag tag-concept">Day 4–5 · complete data flow</div>
+  <h1>Putting it all together</h1>
+  <p class="lead">Here's the full vaultlog data flow from CLI input to verified ledger — every concept from every chapter in one picture.</p>
+  <h2>Complete main.rs</h2>
+  <pre><code><span class="kw">mod</span> models;
+<span class="kw">mod</span> ledger;
+<span class="kw">mod</span> storage;
+
+<span class="kw">use</span> clap::Parser;
+<span class="kw">use</span> chrono::Utc;
+<span class="kw">use</span> models::{LogEntry, EntryCategory};
+
+<span class="kw">fn</span> <span class="fn">main</span>() -> <span class="ty">Result</span>&lt;(), <span class="ty">Box</span>&lt;<span class="kw">dyn</span> std::error::<span class="ty">Error</span>&gt;&gt; {
+    <span class="kw">let</span> cli = <span class="ty">Cli</span>::<span class="fn">parse</span>();
+
+    <span class="kw">match</span> cli.command {
+        <span class="ty">Commands</span>::Add { description, category } => {
+            <span class="kw">let</span> entries = storage::<span class="fn">read_all_entries</span>()
+                .<span class="fn">unwrap_or_default</span>();
+
+            <span class="kw">let</span> previous_hash = entries.last()
+                .<span class="fn">map</span>(|e| e.hash.<span class="fn">clone</span>())
+                .<span class="fn">unwrap_or_else</span>(|| <span class="st">"0000000000000000"</span>.to_string());
+
+            <span class="kw">let mut</span> entry = <span class="ty">LogEntry</span> {
+                id: uuid::<span class="ty">Uuid</span>::new_v4().<span class="fn">to_string</span>(),
+                timestamp: <span class="ty">Utc</span>::now(),
+                category: <span class="fn">parse_category</span>(&amp;category),
+                description,
+                metadata: serde_json::<span class="fn">json!</span>({}),
+                previous_hash,
+                hash: <span class="ty">String</span>::new(),
+            };
+
+            entry.hash = ledger::<span class="fn">compute_hash</span>(&amp;entry);
+            storage::<span class="fn">append_entry</span>(&amp;entry)?;
+            println!(<span class="st">"✓ Added: {}"</span>, entry.id);
+        }
+        <span class="ty">Commands</span>::List => {
+            <span class="kw">let</span> entries = storage::<span class="fn">read_all_entries</span>()?;
+            <span class="kw">for</span> entry <span class="kw">in</span> &amp;entries {
+                println!(<span class="st">"[{}] {} — {}"</span>,
+                    entry.timestamp.<span class="fn">format</span>(<span class="st">"%Y-%m-%d"</span>),
+                    entry.description,
+                    entry.id);
+            }
+        }
+        <span class="ty">Commands</span>::Verify => {
+            <span class="kw">let</span> entries = storage::<span class="fn">read_all_entries</span>()?;
+            <span class="kw">if</span> ledger::<span class="fn">verify_chain</span>(&amp;entries) {
+                println!(<span class="st">"✓ Chain verified — {} entries"</span>, entries.len());
+            } <span class="kw">else</span> {
+                println!(<span class="st">"✗ Chain broken — data was tampered with!"</span>);
+            }
+        }
+    }
+    <span class="pm">Ok</span>(())
+}</code></pre>
+  <h2>How it maps to REAL (your bigger project)</h2>
+  <table>
+    <thead><tr><th>vaultlog</th><th>REAL (next project)</th></tr></thead>
+    <tbody>
+      <tr><td><code>LogEntry</code> struct</td><td><code>PropertyEvent</code> struct</td></tr>
+      <tr><td><code>EntryCategory</code> enum</td><td>Acquisition, Transfer, ZoningChange...</td></tr>
+      <tr><td>Flat <code>.ndjson</code> file</td><td>SQLite/PostgreSQL via <code>sqlx</code></td></tr>
+      <tr><td>CLI with Clap</td><td>REST API with Axum</td></tr>
+      <tr><td><code>verify_chain()</code></td><td>Audit trail integrity check</td></tr>
+      <tr><td>SHA-256 hash chain</td><td>Same concept, immutable ledger</td></tr>
+    </tbody>
+  </table>
+  <h2>Day 5 polish checklist</h2>
+  <ul>
+    <li>Add the <code>colored</code> crate for terminal colours — <code>cargo add colored</code></li>
+    <li>Handle the "file not found" case in <code>read_all_entries</code> gracefully (return empty vec)</li>
+    <li>Write a solid README explaining the hash chain concept</li>
+    <li>Push to GitHub — this is real work worth showing</li>
+    <li>Spend an hour writing down every Rust concept you used and how it maps to REAL</li>
+  </ul>
+  <div class="callout tip">
+    <div class="callout-head">You're not starting over when you build REAL</div>
+    <p>Every pattern in vaultlog scales directly. The struct becomes a richer model. The flat file becomes a database. The CLI becomes an Axum REST API. The hash chain stays identical. You're expanding what you built — not rewriting it.</p>
+  </div>
+  <div class="nav-row">
+    <button class="nbtn" onclick="go('s8')">← Pattern matching</button>
+    <button class="nbtn" onclick="sendPrompt('Can you show me the complete models.rs and ledger.rs files for vaultlog with full comments?')">Show complete files ↗</button>
+  </div>
+</section>
+
+</main>
+
+<script>
+const chapters = [
+  {id:'s0',n:'00',t:'The mental shift',s:'JS → Rust fundamentals'},
+  {id:'s1',n:'01',t:'Setup & cargo',s:'Day 1 prep · cargo ≈ npm'},
+  {id:'s2',n:'02',t:'Variables & types',s:'Day 1 · let, mut, &str, String'},
+  {id:'s3',n:'03',t:'Structs & enums',s:'Day 1 · LogEntry, EntryCategory'},
+  {id:'s4',n:'04',t:'Functions & methods',s:'Day 2 · fn, impl, self'},
+  {id:'s5',n:'05',t:'Error handling',s:'Day 2–3 · Result, ?, Box<dyn Error>'},
+  {id:'s6',n:'06',t:'Ownership & borrowing',s:'Day 3 · the hardest part'},
+  {id:'s7',n:'07',t:'Iterators & closures',s:'Day 3 · storage.rs'},
+  {id:'s8',n:'08',t:'Pattern matching',s:'Day 4 · match, Commands'},
+  {id:'s9',n:'09',t:'Putting it together',s:'Full vaultlog data flow'},
+];
+const visited = new Set(['s0']);
+const nav = document.getElementById('nav');
+chapters.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'nb' + (c.id==='s0' ? ' active' : '');
+  b.id = 'nb-'+c.id;
+  b.innerHTML = `<span class="nb-num">${c.n}</span><span class="nb-info"><span class="nb-title">${c.t}</span><span class="nb-sub">${c.s}</span></span>`;
+  b.onclick = () => go(c.id);
+  nav.appendChild(b);
+});
+function go(id) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('nb-'+id).classList.add('active');
+  visited.add(id);
+  const pct = Math.round((visited.size / chapters.length) * 100);
+  document.getElementById('prog').style.width = pct+'%';
+  document.getElementById('prog-label').textContent = visited.size + ' of ' + chapters.length + ' chapters';
+  document.getElementById('main-content').scrollTop = 0;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base: #0a0c10;
+  --bg-elevated: #111318;
+  --bg-sidebar: #0c0e13;
+  --bg-code: #0f1117;
+  --bg-hover: #1a1d26;
+  --bg-active: #1e212a;
+
+  --text-primary: #edf2f7;
+  --text-secondary: #a0aec0;
+  --text-tertiary: #6b7280;
+
+  --accent-red: #e5484d;
+  --accent-red-dark: #b33a3f;
+  --accent-gold: #f0a34b;
+  --accent-mint: #3dd68c;
+  --accent-lavender: #8f7ee6;
+  --accent-sky: #38bdf8;
+  --accent-rose: #fb7185;
+  --accent-lime: #a3e635;
+
+  --border-light: #2a2f3a;
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-elevated); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 8px; }
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  margin: 18px 0 22px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  font-family: var(--font-mono);
+  box-shadow: var(--shadow-sm);
+}
+
+code { font-family: var(--font-mono); font-size: 12.5px; }
+
+p code, li code, td code {
+  background: rgba(143,126,230,0.15);
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #c5b8ff;
+  font-weight: 500;
+}
+
+table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13.5px; border-radius: 14px; overflow: hidden; }
+th { background: var(--bg-elevated); padding: 11px 14px; text-align: left; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-tertiary); border-bottom: 1px solid var(--border-light); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border-light); vertical-align: top; color: var(--text-secondary); }
+tr:last-child td { border-bottom: none; }
+
+.tag-cli    { background: rgba(240,163,75,0.12); color: #f0a34b; }
+.tag-axum   { background: rgba(143,126,230,0.12); color: #afa9ec; }
+.tag-db     { background: rgba(61,214,140,0.12); color: #3dd68c; }
+.tag-day    { background: rgba(240,163,75,0.12); color: #f0a34b; }
+.tag-concept{ background: rgba(143,126,230,0.12); color: #afa9ec; }
+.tag-foundation { background: rgba(240,163,75,0.12); color: #f0a34b; }
+.tag-ownership  { background: rgba(229,72,77,0.12); color: #e5484d; }
+.tag-borrowing  { background: rgba(56,189,248,0.12); color: #38bdf8; }
+.tag-lifetimes  { background: rgba(143,126,230,0.12); color: #8f7ee6; }
+.tag-traits     { background: rgba(61,214,140,0.12); color: #3dd68c; }
+.tag-js         { background: rgba(240,163,75,0.12); color: #f0a34b; }
+
+.callout-concept { background: linear-gradient(120deg,rgba(143,126,230,0.08),rgba(143,126,230,0.02)); box-shadow: 0 0 0 1px rgba(143,126,230,0.2); }
+.callout-concept .callout-head { color: var(--accent-lavender); }
+.callout-tip { background: linear-gradient(120deg,rgba(61,214,140,0.08),rgba(61,214,140,0.02)); box-shadow: 0 0 0 1px rgba(61,214,140,0.25); }
+.callout-tip .callout-head { color: var(--accent-mint); }
+.callout-warning { background: linear-gradient(120deg,rgba(229,72,77,0.08),rgba(229,72,77,0.02)); box-shadow: 0 0 0 1px rgba(229,72,77,0.25); }
+.callout-warning .callout-head { color: var(--accent-red); }
+.callout-important { background: linear-gradient(120deg,rgba(240,163,75,0.08),rgba(240,163,75,0.02)); box-shadow: 0 0 0 1px rgba(240,163,75,0.2); }
+.callout-important .callout-head { color: var(--accent-gold); }
+.callout-js { background: linear-gradient(120deg,rgba(240,163,75,0.08),rgba(240,163,75,0.02)); box-shadow: 0 0 0 1px rgba(240,163,75,0.2); }
+.callout-js .callout-head { color: var(--accent-gold); }
+.callout-rule { background: linear-gradient(120deg,rgba(229,72,77,0.08),rgba(229,72,77,0.02)); box-shadow: 0 0 0 1px rgba(229,72,77,0.2); }
+.callout-rule .callout-head { color: var(--accent-red); }
+.callout-note { background: linear-gradient(120deg,rgba(56,189,248,0.08),rgba(56,189,248,0.02)); box-shadow: 0 0 0 1px rgba(56,189,248,0.2); }
+.callout-note .callout-head { color: var(--accent-sky); }

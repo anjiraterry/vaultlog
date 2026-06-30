@@ -1,0 +1,757 @@
+{
+  "id": "doc3",
+  "title": "vaultlog",
+  "subtitle": "RUST DEEP CONCEPTS",
+  "phases": [
+    {
+      "id": "phase0",
+      "label": "Core Systems",
+      "chapters": [
+        {
+          "id": "s0",
+          "num": "00",
+          "title": "Stack vs Heap Memory",
+          "desc": "Foundation",
+          "tag": "FOUNDATION",
+          "tagColor": "foundation",
+          "content": {
+            "heading": "Stack vs Heap Memory",
+            "lead": "Before ownership, borrowing, or lifetimes make sense ; you need to understand where values actually live in memory. This is the bedrock. Everything else is built on it.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "JavaScript Hides This. Rust Doesn't."
+              },
+              {
+                "type": "p",
+                "text": "In JavaScript, you never think about memory. The engine allocates it, and the garbage collector frees it. In Rust, you are always ; implicitly ; making decisions about where data lives. The compiler enforces those decisions."
+              },
+              {
+                "type": "p",
+                "text": "There are two memory regions that matter:"
+              },
+              {
+                "type": "table",
+                "headers": ["Property", "Stack", "Heap"],
+                "rows": [
+                  [
+                    "Size",
+                    "Must be known at compile time",
+                    "Can grow or shrink at runtime"
+                  ],
+                  [
+                    "Speed",
+                    "Extremely fast ; just moves a pointer",
+                    "Slower ; requires an allocator"
+                  ],
+                  [
+                    "Cleanup",
+                    "Automatic ; when scope ends, stack unwinds",
+                    "Must be freed ; Rust's ownership does this"
+                  ],
+                  [
+                    "Examples",
+                    "i32, bool, f64, &str, pointers",
+                    "String, Vec<T>, Box<T>"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "What a String Actually Is"
+              },
+              {
+                "type": "p",
+                "text": "This is the most important memory diagram in Rust. A String is not just text ; it's a three-field struct on the stack that points to actual text data on the heap:"
+              },
+              {
+                "type": "code",
+                "text": "// let description = String::from(\"Purchased 123 Main St\")\n//\n// STACK (the String struct):         HEAP (the actual bytes):\n// ┌──────────────────────┐           ┌────────────────────────────────────┐\n// │ ptr  → 0x2c9a00      │──────────▶│ \"Purchased 123 Main St\"            │\n// │ len  = 21            │           └────────────────────────────────────┘\n// │ cap  = 21            │\n// └──────────────────────┘"
+              },
+              {
+                "type": "p",
+                "text": "Why does this matter? Because when you move or drop a String, three things happen: the stack struct is cleared, the heap data is freed. This is the whole reason ownership exists ; to track exactly who is responsible for freeing that heap allocation."
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "🔑 The Core Insight",
+                "text": "Types that live entirely on the stack (i32, bool, char) can be copied cheaply ; just duplicate a few bytes. Types that own heap data (String, Vec) cannot be copied trivially ; they'd create two pointers to the same heap memory, and when both tried to free it, you'd have a double-free crash. This is exactly why Rust invented ownership and move semantics."
+              },
+              {
+                "type": "h2",
+                "text": "Copy Types vs Move Types ; The Fundamental Split"
+              },
+              {
+                "type": "table",
+                "headers": [
+                  "Type",
+                  "Where it lives",
+                  "What happens on assign",
+                  "Trait"
+                ],
+                "rows": [
+                  [
+                    "i32, u64, f64, bool, char",
+                    "Stack only",
+                    "Copied ; both variables work",
+                    "Copy"
+                  ],
+                  [
+                    "&str (string slice)",
+                    "Stack (pointer + length)",
+                    "Copied ; both point to same literal",
+                    "Copy"
+                  ],
+                  [
+                    "String",
+                    "Stack struct + Heap data",
+                    "Moved ; original can't be used",
+                    "Clone (not Copy)"
+                  ],
+                  [
+                    "Vec<T>",
+                    "Stack struct + Heap data",
+                    "Moved ; original can't be used",
+                    "Clone (not Copy)"
+                  ],
+                  [
+                    "LogEntry (your struct)",
+                    "Depends on fields",
+                    "Moved by default",
+                    "Opt-in #[derive(Clone)]"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1",
+          "num": "01",
+          "title": "One Owner, Always",
+          "desc": "Ownership",
+          "tag": "OWNERSHIP",
+          "tagColor": "ownership",
+          "content": {
+            "heading": "One Owner, Always",
+            "lead": "Ownership is Rust's core innovation. It's a set of three compile-time rules that replace garbage collection entirely ; with zero runtime cost.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The Three Ownership Rules"
+              },
+              {
+                "type": "callout",
+                "variant": "rule",
+                "head": "THE RULES ; memorise these",
+                "text": "Rule 1: Every value has exactly one owner at any moment. Rule 2: There can only be one owner at a time. Rule 3: When the owner goes out of scope, the value is dropped (freed)."
+              },
+              {
+                "type": "p",
+                "text": "That's it. The entire borrow checker and lifetime system exists to enforce these three rules. Everything else is a consequence of them."
+              },
+              {
+                "type": "h2",
+                "text": "Scope is the Owner's Lifetime"
+              },
+              {
+                "type": "code",
+                "text": "{   // scope begins\n    let description = String::from(\"Purchased 123 Main St\");\n    //  ^^^^^^^^^^^  owns the heap allocation\n\n    // `description` is valid here, we can use it\n    println!(\"{}\", description);\n\n}   // scope ends ; Rust calls drop(description)\n    // heap memory is freed HERE, automatically\n    // no garbage collector. no free(). just scope."
+              },
+              {
+                "type": "callout",
+                "variant": "js",
+                "head": "🔁 JS Translation",
+                "text": "In JavaScript, the GC watches for when no references exist and then (eventually) frees the memory. In Rust, freedom happens immediately and deterministically at the closing brace. No background process, no unpredictable pauses. This is why Rust is used in systems programming ; you know exactly when memory is freed."
+              },
+              {
+                "type": "h2",
+                "text": "Ownership in vaultlog ; the LogEntry"
+              },
+              {
+                "type": "p",
+                "text": "Look at LogEntry ; every field with type String means the struct owns that heap data:"
+              },
+              {
+                "type": "code",
+                "text": "pub struct LogEntry {\n    pub id:            String,  // LogEntry OWNS this heap string\n    pub description:   String,  // LogEntry OWNS this heap string\n    pub previous_hash: String,  // LogEntry OWNS this heap string\n    pub hash:          String,  // LogEntry OWNS this heap string\n    pub category:      EntryCategory, // owned enum value (stack)\n}\n// When a LogEntry is dropped, ALL five heap allocations are freed.\n// Rust generates this cleanup code automatically from the struct definition."
+              },
+              {
+                "type": "h2",
+                "text": "Drop Order ; Rust is Precise"
+              },
+              {
+                "type": "p",
+                "text": "When a struct is dropped, Rust drops its fields in reverse declaration order. This is deterministic and guaranteed. Your LogEntry frees hash first, then previous_hash, then description, then id."
+              },
+              {
+                "type": "h2",
+                "text": "What \"Out of Scope\" Actually Means"
+              },
+              {
+                "type": "p",
+                "text": "Scope in Rust is defined by curly braces { }. Every block ; function body, if branch, loop body, match arm ; is a scope. Variables are dropped when their enclosing scope closes:"
+              },
+              {
+                "type": "code",
+                "text": "fn add_entry(description: String) {  // `description` enters scope here\n    let entry = LogEntry {\n        id: uuid::Uuid::new_v4().to_string(),\n        description,   // ownership MOVES into LogEntry\n        // ...\n    };\n    // entry is valid here\n    append_entry(&entry);  // we BORROW entry (next chapter)\n}   // entry drops here → ALL its String fields freed\n    // description was already moved into entry, so only freed once"
+              }
+            ]
+          }
+        },
+        {
+          "id": "s2",
+          "num": "02",
+          "title": "Why Values Disappear",
+          "desc": "Move Semantics",
+          "tag": "MOVE SEMANTICS",
+          "tagColor": "ownership",
+          "content": {
+            "heading": "Why Values Disappear",
+            "lead": "Move semantics is where most Rust beginners hit their first wall. The compiler rejects code that looks completely normal. Here's exactly why ; and why it's protecting you.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The Problem Move Solves"
+              },
+              {
+                "type": "p",
+                "text": "Imagine two variables pointing to the same heap allocation. When both try to free that memory when they go out of scope ; that's a double-free error. In C, it's undefined behaviour. In JavaScript, the GC tracks references to prevent it. In Rust, the compiler makes it impossible to compile."
+              },
+              {
+                "type": "h2",
+                "text": "Move = Transfer of Ownership"
+              },
+              {
+                "type": "p",
+                "text": "Instead of copying the heap data, Rust moves ownership. The original variable becomes invalid ; the compiler prevents you from using it ever again. This is checked at compile time, not runtime:"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "COMPILE ERROR ; use after move",
+                  "lang": "rs",
+                  "code": "let s1 = String::from(\"vaultlog\");\nlet s2 = s1; // s1 MOVES into s2\n\nprintln!(\"{}\", s1); // ✗ ERROR!\n// error[E0382]: borrow of moved\n// value: `s1`"
+                },
+                "right": {
+                  "label": "CORRECT ; use the new owner",
+                  "lang": "rs",
+                  "code": "let s1 = String::from(\"vaultlog\");\nlet s2 = s1; // s1 moves to s2\n\nprintln!(\"{}\", s2); // ✓ s2 is the owner now\n// s1 is gone ; compiler enforces this"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Move into Functions ; the Most Common Surprise"
+              },
+              {
+                "type": "p",
+                "text": "Passing a value into a function moves ownership into that function. After the call, your variable is gone:"
+              },
+              {
+                "type": "code",
+                "text": "fn print_entry(entry: LogEntry) {  // takes OWNERSHIP of entry\n    println!(\"{}\", entry.description);\n}   // entry drops here ; freed inside the function\n\nfn main() {\n    let entry = LogEntry { /* ... */ };\n    print_entry(entry);  // entry MOVES into print_entry\n\n    println!(\"{}\", entry.description); // ✗ ERROR: use of moved value\n}\n// FIX: either return entry back, clone it, or borrow it (&entry)"
+              },
+              {
+                "type": "h2",
+                "text": "Clone ; Explicit Deep Copy"
+              },
+              {
+                "type": "p",
+                "text": "If you genuinely need two independent copies, you call .clone(). This duplicates the heap data too. It's explicit because it's expensive ; Rust wants you to see every heap allocation:"
+              },
+              {
+                "type": "code",
+                "text": "let entry1 = LogEntry { /* ... */ };\nlet entry2 = entry1.clone();  // deep copy ; new heap allocations\n\n// Both are valid, both own their data independently\nprintln!(\"{}\", entry1.description);  // ✓\nprintln!(\"{}\", entry2.description);  // ✓\n// Requires #[derive(Clone)] on LogEntry"
+              },
+              {
+                "type": "h2",
+                "text": "Copy Types ; the Exception"
+              },
+              {
+                "type": "p",
+                "text": "Simple stack-only types implement the Copy trait and are automatically copied on assignment. No move, no loss of original:"
+              },
+              {
+                "type": "code",
+                "text": "let x: i32 = 42;\nlet y = x;         // COPIED (not moved) ; x is still valid!\nprintln!(\"{} {}\", x, y);  // ✓ both work: 42 42\n\n// Why? i32 is 4 bytes on the stack. There's no heap to worry about.\n// Copying 4 bytes is so cheap Rust just does it automatically."
+              },
+              {
+                "type": "callout",
+                "variant": "js",
+                "head": "🔁 JS Parallel",
+                "text": "In JavaScript, objects are always passed by reference ; two variables can point to the same object. When you write const b = a for an object, both a and b point to the same thing. This is convenient but causes subtle bugs. Rust's move semantics make ownership explicit ; there is always exactly one owner, and the compiler tells you when you violate that."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s3",
+          "num": "03",
+          "title": "& and &mut",
+          "desc": "Borrowing",
+          "tag": "BORROWING",
+          "tagColor": "borrowing",
+          "content": {
+            "heading": "& and &mut ; Lending Without Giving",
+            "lead": "Moving ownership every time you pass a value to a function would make code unworkable. Borrowing is how you let functions use a value temporarily without transferring ownership.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The & Reference ; Immutable Borrow"
+              },
+              {
+                "type": "p",
+                "text": "Putting & in front of a type creates a reference ; a pointer to the value that doesn't take ownership. The original variable remains the owner:"
+              },
+              {
+                "type": "code",
+                "text": "fn compute_hash(entry: &LogEntry) -> String {\n    //              ^ borrows entry ; does NOT take ownership\n    let content = serde_json::to_string(entry).unwrap();\n    // entry is used here...\n}   // entry is NOT dropped here ; we never owned it!\n\nfn main() {\n    let entry = LogEntry { /* ... */ };\n    let hash = compute_hash(&entry); // lend entry ; keep ownership\n    println!(\"{}\", entry.description); // ✓ still valid!\n}"
+              },
+              {
+                "type": "h2",
+                "text": "The &mut Reference ; Mutable Borrow"
+              },
+              {
+                "type": "p",
+                "text": "To modify a value through a reference, use &mut. But there's a strict rule: only one mutable reference at a time, ever:"
+              },
+              {
+                "type": "code",
+                "text": "fn finalise_entry(entry: &mut LogEntry, hash: String) {\n    // Can modify because we have &mut\n    entry.hash = hash;\n}\n\nfn main() {\n    let mut entry = LogEntry { /* ... */ };\n    //  ^^^ the variable itself must be `mut` too\n\n    let hash = compute_hash(&entry);\n    finalise_entry(&mut entry, hash); // mutable borrow\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Why &str and &[T] Are References"
+              },
+              {
+                "type": "p",
+                "text": "A &str is literally a reference to a slice of a String's heap data ; a pointer plus a length. This is why you can take a &str of a String without copying anything:"
+              },
+              {
+                "type": "code",
+                "text": "let owned: String = String::from(\"Purchased 123 Main St\");\nlet slice: &str = &owned;        // borrows the whole string as a slice\nlet part:  &str = &owned[0..9]; // borrows just \"Purchased\"\n// No allocation happened ; slice/part are just (pointer, length) on the stack\n\n// In vaultlog functions, take &str not String when you only need to read:\nfn log_description(desc: &str) {  // ← efficient, no ownership needed\n    println!(\"Entry: {}\", desc);\n}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "s4",
+          "num": "04",
+          "title": "The Three Laws",
+          "desc": "Borrow Rules",
+          "tag": "BORROW RULES",
+          "tagColor": "borrowing",
+          "content": {
+            "heading": "The Three Borrow Laws",
+            "lead": "The borrow checker enforces three rules that make Rust's memory safety possible. Violate any one and your code won't compile. Understand all three and the checker becomes a tool, not a wall.",
+            "sections": [
+              {
+                "type": "callout",
+                "variant": "rule",
+                "head": "THE THREE BORROW RULES",
+                "text": "Law 1: You can have any number of immutable (&) references ; OR. Law 2: You can have exactly one mutable (&mut) reference ; BUT. Law 3: You cannot have both at the same time."
+              },
+              {
+                "type": "h2",
+                "text": "Law 1 ; Many Immutable Readers ✓"
+              },
+              {
+                "type": "code",
+                "text": "let entries: Vec<LogEntry> = read_all_entries().unwrap();\n\n// Multiple & references are fine ; they all just READ\nlet r1 = &entries;\nlet r2 = &entries;\nlet r3 = &entries;\nprintln!(\"{} {} {}\", r1.len(), r2.len(), r3.len()); // ✓ all valid\n// Why is this safe? None of them can modify entries, so no data races."
+              },
+              {
+                "type": "h2",
+                "text": "Law 2 ; One Exclusive Writer ✓"
+              },
+              {
+                "type": "code",
+                "text": "let mut entries: Vec<LogEntry> = Vec::new();\n\nlet m = &mut entries;   // one mutable reference\nm.push(new_entry);     // ✓ can modify through m\n// m goes out of scope after this block, releasing the mutable borrow\n\n// NOW you can create another reference:\nlet r = &entries;       // ✓ fine ; m is no longer active"
+              },
+              {
+                "type": "h2",
+                "text": "Law 3 ; Can't Mix Them ✗"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "COMPILE ERROR ; mixed borrows",
+                  "lang": "rs",
+                  "code": "let mut entries = load_entries();\n\nlet first = &entries[0]; // immutable borrow\n\nentries.push(new_entry); // ✗ mutable borrow\n// ERROR: cannot borrow as mutable\n// because it is also borrowed as immutable\n\nprintln!(\"{}\", first.description); // first used here"
+                },
+                "right": {
+                  "label": "FIXED ; borrows don't overlap",
+                  "lang": "rs",
+                  "code": "let mut entries = load_entries();\n\n// Use first, then drop the reference:\n{\n    let first = &entries[0];\n    println!(\"{}\", first.description);\n}   // first borrow ends here\n\n// Now we can mutate safely:\nentries.push(new_entry); // ✓"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Why These Rules Exist ; The Real Reason"
+              },
+              {
+                "type": "p",
+                "text": "These aren't arbitrary restrictions. They are the compile-time equivalent of preventing data races. A data race happens when: two or more threads access the same memory, at least one is writing, and there's no synchronisation."
+              },
+              {
+                "type": "p",
+                "text": "The borrow rules eliminate data races by making the pattern impossible to compile ; even in single-threaded code. This is also why Rust's concurrency story is so strong: the same rules that prevent bugs in single-threaded code prevent race conditions in multi-threaded code automatically."
+              },
+              {
+                "type": "h2",
+                "text": "The Borrow Checker in vaultlog's verify_chain"
+              },
+              {
+                "type": "p",
+                "text": "The chain verification function is a perfect example of correct borrowing:"
+              },
+              {
+                "type": "code",
+                "text": "pub fn verify_chain(entries: &[LogEntry]) -> bool {\n    //               ^ borrows a SLICE ; doesn't own the Vec\n    //               &[T] = borrowed view of contiguous data\n\n    for i in 1..entries.len() {\n        let prev = &entries[i - 1]; // borrow element i-1\n        let curr = &entries[i];     // borrow element i\n        // Two immutable borrows at once ; totally fine (Law 1)\n\n        if prev.hash != curr.previous_hash {\n            return false;\n        }\n    }\n    true  // implicit return ; no semicolon\n}\n\n// Called as: verify_chain(&entries)\n// The caller keeps ownership of entries. This function just reads."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s5",
+          "num": "05",
+          "title": "'a and Why They Exist",
+          "desc": "Lifetimes",
+          "tag": "LIFETIMES",
+          "tagColor": "lifetimes",
+          "content": {
+            "heading": "'a and Why They Exist",
+            "lead": "Lifetimes are the most intimidating Rust syntax. But they're not doing anything new ; they're just making explicit what the compiler already tracks invisibly. Once you see what problem they solve, the syntax becomes obvious.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The Problem: Dangling References"
+              },
+              {
+                "type": "p",
+                "text": "A dangling reference is a pointer to memory that has already been freed. In C, this is a silent crash waiting to happen. Rust's lifetime system makes dangling references a compile error:"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "DANGLING REFERENCE ; compile error",
+                  "lang": "rs",
+                  "code": "let reference;\n{\n    let entry = LogEntry { /* ... */ };\n    reference = &entry;  // borrow entry\n}   // entry DROPS HERE ; freed!\n\n// ERROR: `entry` does not live long enough\nprintln!(\"{}\", reference.description);\n// reference now points to freed memory"
+                },
+                "right": {
+                  "label": "VALID ; reference lives within owner",
+                  "lang": "rs",
+                  "code": "let entry = LogEntry { /* ... */ };\n{\n    let reference = &entry;\n    println!(\"{}\", reference.description);\n    // ✓ reference used while entry lives\n}   // reference drops first, entry drops after\n// safe: reference never outlives what it points to"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Lifetime Annotations ; Naming How Long"
+              },
+              {
+                "type": "p",
+                "text": "Most of the time, the compiler infers lifetimes automatically (called lifetime elision). You only write explicit lifetime annotations when the compiler needs help connecting multiple references in a function signature."
+              },
+              {
+                "type": "p",
+                "text": "Lifetime syntax looks like generic parameters but with a tick: 'a. You can use any name ; 'a, 'b, 'entry, 'static."
+              },
+              {
+                "type": "code",
+                "text": "// Without explicit lifetimes ; compiler infers\nfn get_description(entry: &LogEntry) -> &str {\n    &entry.description\n}\n// Compiler reads this as: the output &str lives at LEAST as long as &entry\n// It figures this out because there's only one input reference\n\n// When there are MULTIPLE input references, you must be explicit:\nfn longest_description<'a>(\n    a: &'a LogEntry,   // 'a says: a's lifetime is named 'a\n    b: &'a LogEntry,   // b has the SAME lifetime 'a\n) -> &'a str {         // output lives as long as the shorter of a, b\n    if a.description.len() > b.description.len() {\n        &a.description\n    } else {\n        &b.description\n    }\n}"
+              },
+              {
+                "type": "h2",
+                "text": "What 'a Actually Means"
+              },
+              {
+                "type": "p",
+                "text": "A lifetime annotation doesn't change how long something lives. It's a constraint you're expressing to the compiler ; \"I promise the output reference is valid for at least as long as the input.\" If your code violates that promise, it won't compile."
+              },
+              {
+                "type": "h2",
+                "text": "'static ; Lives Forever"
+              },
+              {
+                "type": "p",
+                "text": "There's one special lifetime: 'static. It means the reference is valid for the entire program. String literals are 'static because they're baked into the binary:"
+              },
+              {
+                "type": "code",
+                "text": "let s: &'static str = \"genesis\"; // lives for the whole program\n// String literals are &'static str ; they live in the program binary\n// The const LEDGER_FILE in storage.rs is &'static str:\nconst LEDGER_FILE: &'static str = \"ledger.ndjson\";\n// (you can write &str here; compiler infers 'static for const)"
+              },
+              {
+                "type": "h2",
+                "text": "Lifetimes in Structs"
+              },
+              {
+                "type": "p",
+                "text": "If a struct holds a reference (not an owned value), it needs a lifetime annotation:"
+              },
+              {
+                "type": "code",
+                "text": "// LogEntry owns its Strings, so NO lifetime needed:\npub struct LogEntry { pub description: String }  // ✓ no 'a\n\n// If we held a reference instead, we'd need one:\npub struct EntryView<'a> {\n    pub description: &'a str, // borrows, doesn't own\n}\n// This says: EntryView can't outlive whatever &description points to\n// In practice, prefer owned Strings in structs ; avoids this complexity"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "✅ Practical Advice",
+                "text": "In vaultlog, you almost never write explicit lifetime annotations because your structs own their data (String, not &str). Lifetimes become necessary when you write functions that return references, or when structs hold references. Start by using owned types everywhere, and only reach for lifetime annotations when the compiler tells you to. Then read its error message carefully ; it almost always tells you exactly what annotation to add."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s6",
+          "num": "06",
+          "title": "Shared Behaviour",
+          "desc": "Traits",
+          "tag": "TRAITS",
+          "tagColor": "traits",
+          "content": {
+            "heading": "Shared Behaviour",
+            "lead": "A trait defines a set of methods that a type must implement. It's Rust's equivalent of a TypeScript interface ; but more powerful, because they can have default method implementations and they power the entire generics system.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Traits as Contracts"
+              },
+              {
+                "type": "p",
+                "text": "When you write #[derive(Serialize, Debug, Clone)] on LogEntry, you're telling Rust: \"auto-implement these three traits for this struct.\" Each trait is a contract."
+              },
+              {
+                "type": "h2",
+                "text": "Defining Your Own Trait"
+              },
+              {
+                "type": "code",
+                "text": "// Define the trait ; the contract\npub trait Hashable {\n    // Required: any implementor MUST provide this\n    fn compute_hash(&self) -> String;\n\n    // Default: implementors CAN override, but don't have to\n    fn is_valid_hash(&self, expected: &str) -> bool {\n        self.compute_hash() == expected  // uses the required method\n    }\n}\n\n// Implement the trait for LogEntry\nimpl Hashable for LogEntry {\n    fn compute_hash(&self) -> String {\n        let content = serde_json::to_string(self).unwrap();\n        let mut hasher = Sha256::new();\n        hasher.update(content.as_bytes());\n        format!(\"{:x}\", hasher.finalize())\n    }\n    // is_valid_hash is inherited ; no need to write it again\n}\n\n// Now you can call both methods on any LogEntry:\nlet valid = entry.is_valid_hash(&entry.hash);"
+              },
+              {
+                "type": "h2",
+                "text": "The Derive Traits ; What They Actually Do"
+              },
+              {
+                "type": "table",
+                "headers": [
+                  "Trait",
+                  "What it implements",
+                  "Why vaultlog needs it"
+                ],
+                "rows": [
+                  [
+                    "Serialize",
+                    "Converts struct to JSON/bytes via serde",
+                    "Writing entries to the NDJSON file + hashing"
+                  ],
+                  [
+                    "Deserialize",
+                    "Creates struct from JSON/bytes via serde",
+                    "Reading entries back from the file"
+                  ],
+                  [
+                    "Debug",
+                    "Enables println!(\"{:?}\", entry)",
+                    "Development / error messages"
+                  ],
+                  [
+                    "Clone",
+                    "Implements .clone() ; deep copy",
+                    "When you need an independent copy of an entry"
+                  ],
+                  [
+                    "PartialEq",
+                    "Enables == comparison between values",
+                    "Comparing hashes: expected == actual"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Display ; the fmt::Display Trait"
+              },
+              {
+                "type": "p",
+                "text": "The Display trait controls how your type prints with {} in format strings. You implement it manually when you want a human-readable output:"
+              },
+              {
+                "type": "code",
+                "text": "use std::fmt;\n\nimpl fmt::Display for EntryCategory {\n    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {\n        let label = match self {\n            EntryCategory::Asset      => \"Asset\",\n            EntryCategory::Event      => \"Event\",\n            EntryCategory::Transfer   => \"Transfer\",\n            EntryCategory::Inspection => \"Inspection\",\n            EntryCategory::Note       => \"Note\",\n        };\n        write!(f, \"{}\", label)\n    }\n}\n// Now: println!(\"{}\", EntryCategory::Asset) → \"Asset\""
+              }
+            ]
+          }
+        },
+        {
+          "id": "s7",
+          "num": "07",
+          "title": "<T> and Trait Bounds",
+          "desc": "Generics",
+          "tag": "GENERICS",
+          "tagColor": "traits",
+          "content": {
+            "heading": "<T> and Trait Bounds",
+            "lead": "Generics let you write code that works for multiple types without duplicating it. Trait bounds let you say \"this generic T must be able to do at least this.\" Together, they make Rust's zero-cost abstractions possible.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "The Problem Generics Solve"
+              },
+              {
+                "type": "p",
+                "text": "Without generics, you'd need a separate function for every type:"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "WITHOUT GENERICS ; duplication",
+                  "lang": "rs",
+                  "code": "fn first_entry(v: &Vec<LogEntry>) -> &LogEntry {\n    &v[0]\n}\nfn first_string(v: &Vec<String>) -> &String {\n    &v[0]\n}\n// Identical logic, duplicated for every type"
+                },
+                "right": {
+                  "label": "WITH GENERICS ; one function",
+                  "lang": "rs",
+                  "code": "fn first<T>(v: &Vec<T>) -> &T {\n    &v[0]\n}\n// Works for Vec<LogEntry>, Vec<String>,\n// Vec<i32>, Vec<anything>"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Trait Bounds ; Constraining T"
+              },
+              {
+                "type": "p",
+                "text": "A generic T with no bounds knows nothing about the type ; you can't call any methods on it. Trait bounds tell the compiler what T can do:"
+              },
+              {
+                "type": "code",
+                "text": "// T must implement Debug ; so we can print it\nfn print_item<T: fmt::Debug>(item: &T) {\n    println!(\"{:?}\", item);  // ✓ Debug guarantees this works\n}\n\n// Multiple bounds with + syntax\nfn save_entry<T: Serialize + fmt::Debug>(entry: &T) {\n    println!(\"{:?}\", entry);               // needs Debug\n    serde_json::to_string(entry).unwrap(); // needs Serialize\n}\n\n// Equivalent with `where` clause (cleaner for complex bounds):\nfn save_entry<T>(entry: &T)\nwhere\n    T: Serialize + fmt::Debug\n{\n    /* same body */\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Generics in vaultlog ; Vec<LogEntry>"
+              },
+              {
+                "type": "p",
+                "text": "Vec<T> is the most common generic you'll use. It's a growable heap-allocated array that works for any type:"
+              },
+              {
+                "type": "code",
+                "text": "// Vec<LogEntry> ; a growable list of LogEntry values\npub fn read_all_entries() -> Result<Vec<LogEntry>, Box<dyn std::Error>> {\n    let file = std::fs::File::open(LEDGER_FILE)?;\n    let reader = BufReader::new(file);\n\n    // .lines() returns Iterator<Item = Result<String>>\n    // .filter_map() is generic: works on any Iterator\n    let entries: Vec<LogEntry> = reader\n        .lines()\n        .filter_map(|line| line.ok())              // Result → Option\n        .filter_map(|line| serde_json::from_str(&line).ok()) // parse JSON\n        .collect();  // <-- collect() is generic: \"gather into a collection\"\n                     // type annotation tells it WHICH collection to build\n    Ok(entries)\n}"
+              },
+              {
+                "type": "h2",
+                "text": "Box<dyn Error> ; Dynamic Dispatch"
+              },
+              {
+                "type": "p",
+                "text": "You've seen this in return types. It's a specific use of generics worth understanding:"
+              },
+              {
+                "type": "code",
+                "text": "// Box<dyn Error> means:\n// Box = heap allocation (the error lives on the heap)\n// dyn = dynamic dispatch (the exact type is unknown at compile time)\n// Error = the trait the value implements\n\npub fn append_entry(entry: &LogEntry) -> Result<(), Box<dyn std::Error>> {\n    // This can return io::Error, serde_json::Error, or any other error\n    // Box<dyn Error> is the \"I don't care which error\" escape hatch\n    let mut file = OpenOptions::new()\n        .create(true).append(true).open(LEDGER_FILE)?; // io::Error\n    let line = serde_json::to_string(entry)?;           // serde error\n    writeln!(file, \"{}\", line)?;                       // io::Error\n    Ok(())\n}"
+              },
+              {
+                "type": "callout",
+                "variant": "note",
+                "head": "🔁 JS Translation",
+                "text": "Generics in Rust are like TypeScript generics (function first<T>(arr: T[]): T) ; same concept, just stricter. The key difference: Rust generics with trait bounds are monomorphised at compile time ; the compiler generates a separate version of the function for each concrete type it's called with. No runtime overhead, unlike TypeScript generics which are erased."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s8",
+          "num": "08",
+          "title": "All 5 in vaultlog",
+          "desc": "Synthesis",
+          "tag": "SYNTHESIS",
+          "tagColor": "foundation",
+          "content": {
+            "heading": "All Five Concepts in One File",
+            "lead": "Every concept from this guide appears together in the vaultlog source. Here's the full annotated storage module ; read it top to bottom and you'll see all five systems interacting in real code.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "storage.rs ; Fully Annotated"
+              },
+              {
+                "type": "code",
+                "text": "// 1. TRAITS: these imports bring traits into scope.\n//    BufRead, Write, Read are traits that add methods to file types.\nuse std::io::{BufRead, BufReader, Write};\nuse std::fs::OpenOptions;\nuse crate::models::LogEntry;\n\n// LIFETIMES: &'static str ; this string lives for the program's lifetime\n// OWNERSHIP: LEDGER_FILE is a const ; no owner, baked into the binary\nconst LEDGER_FILE: &str = \"ledger.ndjson\";\n\npub fn append_entry(\n    entry: &LogEntry     // BORROWING: & ; we borrow, don't take ownership\n                          // caller keeps the entry after this function returns\n) -> Result<(), Box<dyn std::Error>>\n// GENERICS: Result<T, E> is generic. T = () (unit, \"no value on success\")\n// Box<dyn Error> = heap-allocated trait object, any error type\n{\n    let mut file = OpenOptions::new()\n        .create(true)\n        .append(true)\n        .open(LEDGER_FILE)?;\n    //              ^ OWNERSHIP: OpenOptions::open() returns Result<File>\n    //                File is MOVED into `file` ; this fn owns it\n    //              ? OPERATOR: if Err, converts and returns it early\n\n    let line = serde_json::to_string(entry)?;\n    //  GENERICS: to_string<T: Serialize> ; works on anything Serializable\n    //  TRAITS: LogEntry must impl Serialize (from #[derive(Serialize)])\n    //  OWNERSHIP: `line` is a new String, owned by this scope\n\n    writeln!(file, \"{}\", line)?;\n    //  TRAITS: writeln! uses the Write trait on `file`\n    //  BORROWING: writes to `file` which we own via &mut (implicit in writeln!)\n\n    Ok(())\n    // STACK: () is zero bytes ; we're just signalling success\n    // OWNERSHIP: file DROPS here ; OS file handle closed automatically\n    // OWNERSHIP: line DROPS here ; its heap String freed\n}   // entry was BORROWED ; it lives on, unchanged, in the caller"
+              },
+              {
+                "type": "h2",
+                "text": "The Ownership Flow of a Full Add Command"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "let description = String::from(\"Purchased 123 Main St\") → description created, owns heap allocation",
+                  "let entry = LogEntry { description, .. } → description MOVES into LogEntry; LogEntry now owns it",
+                  "let hash = compute_hash(&entry) → entry is BORROWED; compute_hash reads it, returns a new String",
+                  "entry.hash = hash → hash (new String) MOVES into the entry struct field",
+                  "append_entry(&entry) → entry BORROWED; storage serialises it, writes to file",
+                  "} ← closing brace of add_entry() → entry DROPS; all its String fields freed. One allocation, one free."
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "The Five Concepts ; One Reference Table"
+              },
+              {
+                "type": "table",
+                "headers": [
+                  "Concept",
+                  "What it ensures",
+                  "Seen in vaultlog as"
+                ],
+                "rows": [
+                  [
+                    "Stack/Heap",
+                    "You know where data lives and how it's freed",
+                    "String fields (heap), i32/bool (stack), Vec<LogEntry> (heap)"
+                  ],
+                  [
+                    "Ownership",
+                    "Exactly one owner; freed exactly once on drop",
+                    "LogEntry owning its String fields; entries returned from functions"
+                  ],
+                  [
+                    "Move Semantics",
+                    "No double-free, no two owners",
+                    "description moving into LogEntry; entries moving into Vec"
+                  ],
+                  [
+                    "Borrowing",
+                    "Use without transferring ownership",
+                    "&entry in compute_hash and append_entry; &[LogEntry] in verify_chain"
+                  ],
+                  [
+                    "Lifetimes",
+                    "References never outlive their data",
+                    "Compiler-inferred everywhere; &'static str for LEDGER_FILE"
+                  ],
+                  [
+                    "Traits",
+                    "Shared behaviour across types",
+                    "Serialize, Deserialize, Debug, Clone on LogEntry"
+                  ],
+                  [
+                    "Generics",
+                    "One implementation, many types",
+                    "Vec<LogEntry>, Result<T, E>, Option<T>, filter_map, collect"
+                  ]
+                ]
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "✅ What to Do Next",
+                "text": "Return to this guide whenever the compiler rejects your code. Ask: Is this an ownership error? A borrow error? A lifetime error? The compiler error message will contain the answer and often the fix. Over time, you'll stop needing this reference ; these rules become instinctive, and you'll start writing code that the compiler accepts on the first try."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

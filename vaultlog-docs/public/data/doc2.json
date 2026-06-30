@@ -1,0 +1,851 @@
+{
+  "id": "doc2",
+  "title": "vaultlog",
+  "subtitle": "Rust for JS/TS developers",
+  "phases": [
+    {
+      "id": "phase0",
+      "label": "Fundamentals",
+      "chapters": [
+        {
+          "id": "s0",
+          "num": "00",
+          "title": "The mental shift",
+          "desc": "JS → Rust fundamentals",
+          "tag": "Orientation",
+          "tagColor": "concept",
+          "content": {
+            "heading": "The JS → Rust mental shift",
+            "lead": "You already think like a programmer. This guide rewires that thinking for Rust ; using JavaScript and TypeScript as the translation layer throughout.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Why Rust feels strange at first"
+              },
+              {
+                "type": "p",
+                "text": "Every unusual piece of Rust syntax is solving a problem JavaScript handles invisibly. Once you see what it's solving, the syntax makes sense on its own."
+              },
+              {
+                "type": "table",
+                "headers": [
+                  "JS/TS concept",
+                  "Rust equivalent",
+                  "Key difference"
+                ],
+                "rows": [
+                  ["package.json", "Cargo.toml", "Near-identical concept"],
+                  ["npm", "cargo", "Also builds, runs, tests ; one tool"],
+                  ["TS interface", "struct", "Gets methods via impl"],
+                  ["TS union types", "enum", "Each variant can hold data"],
+                  ["try/catch", "Result<T,E>", "Errors are values, not thrown"],
+                  ["null/undefined", "Option<T>", "Explicit \"maybe nothing\""],
+                  ["x => ...", "|x| ...", "Different syntax, same idea"],
+                  [
+                    ".map().filter()",
+                    ".map().filter().collect()",
+                    "Needs .collect() to run"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Four things that make Rust different"
+              },
+              {
+                "type": "p",
+                "text": "1. Compiled, not interpreted. Your code becomes native machine code before it ever runs. Many JS runtime errors simply cannot exist in compiled Rust."
+              },
+              {
+                "type": "p",
+                "text": "2. Static types ; no surprises. Every value has a type the compiler knows at compile time. No \"5\" + 5 = \"55\" surprises."
+              },
+              {
+                "type": "p",
+                "text": "3. No garbage collector. JavaScript's GC cleans up memory in the background. Rust uses ownership rules to free memory exactly when needed ; zero runtime overhead."
+              },
+              {
+                "type": "p",
+                "text": "4. Immutable by default. In JS, let is mutable. In Rust, let is immutable. You opt into mutation with let mut."
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "Key mindset",
+                "text": "When Rust rejects your code, it's not being difficult ; it's catching a bug you'd spend hours debugging at runtime. The compiler is your first line of defence. Its error messages often suggest exactly what to fix."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1",
+          "num": "01",
+          "title": "Setup & cargo",
+          "desc": "Day 1 prep · cargo ≈ npm",
+          "tag": "Day 1 prep",
+          "tagColor": "day",
+          "content": {
+            "heading": "Setup & cargo",
+            "lead": "Installing Rust and learning cargo ; which is npm, webpack, and jest rolled into one binary.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Installing Rust"
+              },
+              {
+                "type": "code",
+                "text": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+              },
+              {
+                "type": "p",
+                "text": "This installs: rustc (the compiler), cargo (build + package manager), and rustup (toolchain manager). Verify:"
+              },
+              {
+                "type": "code",
+                "text": "rustc --version   # e.g. rustc 1.78.0\ncargo --version   # e.g. cargo 1.78.0"
+              },
+              {
+                "type": "h2",
+                "text": "cargo ≈ npm (but more)"
+              },
+              {
+                "type": "table",
+                "headers": ["npm", "cargo"],
+                "rows": [
+                  ["npm init", "cargo new vaultlog"],
+                  ["package.json", "Cargo.toml"],
+                  ["npm install", "cargo build"],
+                  ["npm start", "cargo run"],
+                  ["npm test", "cargo test"],
+                  ["npmjs.com", "crates.io"]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Create the project"
+              },
+              {
+                "type": "code",
+                "text": "cargo new vaultlog\ncd vaultlog"
+              },
+              {
+                "type": "p",
+                "text": "This scaffolds:"
+              },
+              {
+                "type": "code",
+                "text": "vaultlog/\n├── Cargo.toml     # like package.json\n└── src/\n    └── main.rs    # entry point ; like index.js"
+              },
+              {
+                "type": "h2",
+                "text": "Cargo.toml ; your package.json"
+              },
+              {
+                "type": "code",
+                "text": "[package]\nname = \"vaultlog\"\nversion = \"0.1.0\"\nedition = \"2021\"    # which Rust edition (like ES2021)\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nsha2 = \"0.10\"\nchrono = { version = \"0.4\", features = [\"serde\"] }\nclap = { version = \"4\", features = [\"derive\"] }\nuuid = { version = \"1\", features = [\"v4\"] }"
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "Features in Cargo.toml",
+                "text": "Some crates have optional features. serde = { features = [\"derive\"] } unlocks #[derive(Serialize)] on your structs. Think of it like opting into optional peer dependencies ; you only pay for what you use."
+              },
+              {
+                "type": "h2",
+                "text": "Modules ; like JS files"
+              },
+              {
+                "type": "p",
+                "text": "vaultlog splits across multiple files. Each file is a module. You declare them in main.rs:"
+              },
+              {
+                "type": "code",
+                "text": "mod models;   // loads src/models.rs\nmod ledger;   // loads src/ledger.rs\nmod storage;  // loads src/storage.rs"
+              }
+            ]
+          }
+        },
+        {
+          "id": "s2",
+          "num": "02",
+          "title": "Variables & types",
+          "desc": "Day 1 · let, mut, &str, String",
+          "tag": "Day 1 · src/models.rs",
+          "tagColor": "day",
+          "content": {
+            "heading": "Variables & types",
+            "lead": "Rust's type system is the foundation. Stricter than TypeScript, more explicit ; but that strictness is what makes Rust safe and fast.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "let is immutable by default"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript",
+                  "lang": "js",
+                  "code": "// let is MUTABLE in JS\nlet count = 0;\ncount = 1;  // ✓ fine\n\nconst name = \"vault\";\nname = \"x\"; // ✗ runtime"
+                },
+                "right": {
+                  "label": "Rust",
+                  "lang": "rs",
+                  "code": "// let is IMMUTABLE in Rust!\nlet count = 0;\ncount = 1;  // ✗ compile error!\n\n// mut opts into mutability\nlet mut count = 0;\ncount = 1;  // ✓ fine"
+                }
+              },
+              {
+                "type": "callout",
+                "variant": "js",
+                "head": "JS translation",
+                "text": "Think of Rust's let as JS's const. Think of Rust's let mut as JS's let."
+              },
+              {
+                "type": "h2",
+                "text": "Numeric types"
+              },
+              {
+                "type": "p",
+                "text": "JS has one number type. Rust has many ; it cares exactly how much memory a value takes and whether it can be negative:"
+              },
+              {
+                "type": "table",
+                "headers": ["Rust type", "What it is"],
+                "rows": [
+                  ["i32", "Signed 32-bit integer (default for integers)"],
+                  ["u32", "Unsigned 32-bit (positive only, 0–4 billion)"],
+                  ["i64 / u64", "64-bit variants, larger range"],
+                  ["f64", "64-bit float (default for decimals)"],
+                  ["usize", "Pointer-sized unsigned ; used for indices"],
+                  ["bool", "true or false"]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "The two string types ; this really matters"
+              },
+              {
+                "type": "table",
+                "headers": ["Type", "What it is", "When to use"],
+                "rows": [
+                  [
+                    "&str",
+                    "Borrowed reference to a string. Fixed-size. Usually string literals.",
+                    "Function params, strings you only read"
+                  ],
+                  [
+                    "String",
+                    "Owned, heap-allocated string. Can grow, can be modified.",
+                    "Struct fields, strings built at runtime"
+                  ]
+                ]
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript ; one string type",
+                  "lang": "js",
+                  "code": "const a = \"vault\";\nfunction greet(name) {\n  return `Hi ${name}`;\n}"
+                },
+                "right": {
+                  "label": "Rust ; two string types",
+                  "lang": "rs",
+                  "code": "let a: &str = \"vault\";\nlet b: String = \"vault\".to_string();\nfn greet(name: &str) -> String {\n    format!(\"Hi {}\", name)\n}"
+                }
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "Rule of thumb",
+                "text": "Use String for struct fields. Use &str for function parameters where you only need to read. Convert: \"hello\".to_string() gives a String; &my_string gives a &str."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s3",
+          "num": "03",
+          "title": "Structs & enums",
+          "desc": "Day 1 · LogEntry, EntryCategory",
+          "tag": "Day 1 · src/models.rs",
+          "tagColor": "day",
+          "content": {
+            "heading": "Structs & enums",
+            "lead": "These are how you model your data. Structs are TypeScript interfaces with methods. Rust enums are far more powerful than anything TypeScript has.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Structs ; typed data containers"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "TypeScript interface",
+                  "lang": "js",
+                  "code": "interface LogEntry {\n  id: string;\n  description: string;\n  category: EntryCategory;\n  previousHash: string;\n  hash: string;\n}"
+                },
+                "right": {
+                  "label": "Rust struct",
+                  "lang": "rs",
+                  "code": "pub struct LogEntry {\n    pub id: String,\n    pub description: String,\n    pub category: EntryCategory,\n    pub previous_hash: String,\n    pub hash: String,\n}"
+                }
+              },
+              {
+                "type": "p",
+                "text": "pub is like export in JS ; everything in Rust is private by default."
+              },
+              {
+                "type": "h2",
+                "text": "The #[derive] attribute ; auto-generated code"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(Serialize, Deserialize, Debug, Clone)]\npub struct LogEntry { /* ... */ }"
+              },
+              {
+                "type": "table",
+                "headers": ["Derive trait", "What it gives you"],
+                "rows": [
+                  ["Serialize", "struct → JSON automatically"],
+                  ["Deserialize", "JSON → struct automatically"],
+                  ["Debug", "println!(\"{:?}\", entry) works"],
+                  ["Clone", ".clone() deep-copies the struct"]
+                ]
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "Traits",
+                "text": "A trait is Rust's version of an interface ; it defines behaviour a type can have. When you #[derive(...)] one, Rust writes the implementation for you. When you need custom behaviour, you write it in an impl block."
+              },
+              {
+                "type": "h2",
+                "text": "Enums ; sum types with real power"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "TypeScript enum (just constants)",
+                  "lang": "js",
+                  "code": "enum Category {\n  Asset = \"ASSET\",\n  Event = \"EVENT\",\n}\n// Every value is just a string"
+                },
+                "right": {
+                  "label": "Rust enum (variants)",
+                  "lang": "rs",
+                  "code": "pub enum EntryCategory {\n    Asset,\n    Event,\n    Transfer,\n    Inspection,\n    Note,\n}\n// Used as: EntryCategory::Asset"
+                }
+              },
+              {
+                "type": "h3",
+                "text": "Enums with data ; where it gets interesting"
+              },
+              {
+                "type": "p",
+                "text": "Each variant can hold completely different data. This is how the CLI Commands enum works:"
+              },
+              {
+                "type": "code",
+                "text": "enum Commands {\n    Add {\n        description: String,  // holds two named fields\n        category: String,\n    },\n    List,    // holds nothing\n    Verify,  // holds nothing\n}"
+              },
+              {
+                "type": "h3",
+                "text": "Option<T> ; Rust's null replacement"
+              },
+              {
+                "type": "p",
+                "text": "Rust has no null. Instead, a built-in enum:"
+              },
+              {
+                "type": "code",
+                "text": "match entries.last() {\n    Some(entry) => println!(\"{}\", entry.description),\n    None        => println!(\"No entries yet\"),\n}\n// Compiler forces you to handle BOTH cases ; no null surprises"
+              }
+            ]
+          }
+        },
+        {
+          "id": "s4",
+          "num": "04",
+          "title": "Functions & methods",
+          "desc": "Day 2 · fn, impl, self",
+          "tag": "Day 2 · src/ledger.rs",
+          "tagColor": "day",
+          "content": {
+            "heading": "Functions & methods",
+            "lead": "How to write functions, attach behaviour to structs with impl blocks, and understand Rust's implicit-return rule.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Defining functions"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "TypeScript",
+                  "lang": "js",
+                  "code": "function greet(\n  name: string\n): string {\n  return `Hello, ${name}!`;\n}"
+                },
+                "right": {
+                  "label": "Rust",
+                  "lang": "rs",
+                  "code": "fn greet(name: &str) -> String {\n    format!(\"Hello, {}!\", name)\n    // No semicolon = implicit return\n}"
+                }
+              },
+              {
+                "type": "callout",
+                "variant": "warning",
+                "head": "Semicolons are semantic",
+                "text": "In Rust, a semicolon turns an expression (which has a value) into a statement (which doesn't). The last line with no semicolon is the implicit return. Add a semicolon and you'll get: expected String, found (). The fix: remove the semicolon."
+              },
+              {
+                "type": "h2",
+                "text": "impl blocks ; attaching methods to structs"
+              },
+              {
+                "type": "p",
+                "text": "In JS, methods live inside classes. In Rust, data (struct) and behaviour (impl) are deliberately separate:"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript class",
+                  "lang": "js",
+                  "code": "class LogEntry {\n  constructor(desc) {\n    this.description = desc;\n  }\n  getDesc() {\n    return this.description;\n  }\n}"
+                },
+                "right": {
+                  "label": "Rust struct + impl",
+                  "lang": "rs",
+                  "code": "struct LogEntry {\n    description: String\n}\nimpl LogEntry {\n    pub fn get_desc(&self) -> &str {\n        &self.description\n    }\n}"
+                }
+              },
+              {
+                "type": "h3",
+                "text": "Three flavors of self"
+              },
+              {
+                "type": "table",
+                "headers": ["Syntax", "Meaning", "JS equivalent"],
+                "rows": [
+                  [
+                    "&self",
+                    "Borrow read-only (most common)",
+                    "this ; only reading fields"
+                  ],
+                  [
+                    "&mut self",
+                    "Borrow mutably ; can modify fields",
+                    "this ; writing fields"
+                  ],
+                  [
+                    "self",
+                    "Take ownership (struct is consumed)",
+                    "No direct equivalent"
+                  ],
+                  [
+                    "no self",
+                    "Associated function (like static)",
+                    "static class method"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "compute_hash ; the real vaultlog function"
+              },
+              {
+                "type": "code",
+                "text": "pub fn compute_hash(entry: &LogEntry) -> String {\n    let content = serde_json::to_string(entry)\n        .expect(\"Failed to serialize entry\");\n\n    let mut hasher = Sha256::new();\n    hasher.update(content.as_bytes());\n    format!(\"{:x}\", hasher.finalize())\n}"
+              },
+              {
+                "type": "p",
+                "text": ".expect(\"message\") is the quick way to crash with a message if something fails. In production you'd use ? instead (chapter 5)."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s5",
+          "num": "05",
+          "title": "Error handling",
+          "desc": "Day 2–3 · Result, ?, Box<dyn Error>",
+          "tag": "Day 2–3 · everywhere",
+          "tagColor": "day",
+          "content": {
+            "heading": "Error handling",
+            "lead": "One of the biggest mental shifts from JS. Rust has no exceptions ; errors are values your functions return explicitly.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Result<T, E> ; Rust's try/catch replacement"
+              },
+              {
+                "type": "p",
+                "text": "Result is a built-in enum with two variants:"
+              },
+              {
+                "type": "code",
+                "text": "enum Result<T, E> {\n    Ok(T),   // success ; holds the value\n    Err(E),  // failure ; holds the error\n}"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript try/catch",
+                  "lang": "js",
+                  "code": "async function readFile(path) {\n  try {\n    const data = fs.readFileSync(path);\n    return data;\n  } catch(err) {\n    console.error(err);\n  }\n}"
+                },
+                "right": {
+                  "label": "Rust Result",
+                  "lang": "rs",
+                  "code": "fn read_file(path: &str)\n  -> Result<String, io::Error>\n{\n    let content = fs::read_to_string(path)?;\n    Ok(content)\n}"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "The ? operator ; error propagation made easy"
+              },
+              {
+                "type": "p",
+                "text": "The ? at the end of a line is the most important operator for beginners to learn. It means: \"if this returns Err, immediately return that error from my function. If it's Ok, unwrap and continue.\""
+              },
+              {
+                "type": "code",
+                "text": "// Without ? ; verbose\nlet file = OpenOptions::new().open(path);\nlet file = match file {\n    Ok(f) => f,\n    Err(e) => return Err(e),\n};\n\n// With ? ; clean\nlet file = OpenOptions::new().open(path)?;"
+              },
+              {
+                "type": "h2",
+                "text": "Box<dyn Error> ; accepting any error type"
+              },
+              {
+                "type": "p",
+                "text": "In vaultlog's storage functions you'll see this return type:"
+              },
+              {
+                "type": "code",
+                "text": "pub fn append_entry(entry: &LogEntry)\n    -> Result<(), Box<dyn Error>>\n{\n    let mut file = OpenOptions::new()\n        .create(true)\n        .append(true)\n        .open(\"ledger.ndjson\")?;\n\n    let line = serde_json::to_string(entry)?;\n    writeln!(file, \"{}\", line)?;\n    Ok(())   // explicit \"success, no value\"\n}"
+              },
+              {
+                "type": "table",
+                "headers": ["Pattern", "When to use"],
+                "rows": [
+                  [
+                    "?",
+                    "Propagate errors up ; use this in almost every function"
+                  ],
+                  [
+                    ".expect(\"msg\")",
+                    "Panic with message ; fine in prototypes, avoid in libraries"
+                  ],
+                  [
+                    ".unwrap()",
+                    "Panic silently ; only when you're certain it's Ok"
+                  ],
+                  [
+                    "match on Result",
+                    "When you need to handle Ok and Err differently"
+                  ]
+                ]
+              },
+              {
+                "type": "callout",
+                "variant": "concept",
+                "head": "The () unit type",
+                "text": "() pronounced \"unit\" is Rust's \"no meaningful value\" type. Result<(), E> means \"succeeds with nothing, or fails with an error\" ; like a void function that can fail."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s6",
+          "num": "06",
+          "title": "Ownership & borrowing",
+          "desc": "Day 3 · the hardest part",
+          "tag": "Day 3 · the hardest part",
+          "tagColor": "day",
+          "content": {
+            "heading": "Ownership & borrowing",
+            "lead": "The concept unique to Rust. There is no garbage collector ; ownership rules determine exactly when memory is freed. This is what the borrow checker enforces.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Three ownership rules"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "Every value in Rust has exactly one owner.",
+                  "There can only ever be one owner at a time.",
+                  "When the owner goes out of scope, the value is dropped (freed)."
+                ]
+              },
+              {
+                "type": "code",
+                "text": "let s1 = String::from(\"hello\");\nlet s2 = s1;  // s1 is MOVED into s2\nprintln!(\"{}\", s1);  // ✗ compile error! s1 no longer owns this"
+              },
+              {
+                "type": "callout",
+                "variant": "js",
+                "head": "Why JS never does this",
+                "text": "In JS, objects are reference-counted by the GC ; multiple variables can \"point\" to the same data. Rust forbids this to eliminate entire classes of bugs (data races, use-after-free). The trade-off: you think about ownership explicitly."
+              },
+              {
+                "type": "h2",
+                "text": "Borrowing with & ; read without owning"
+              },
+              {
+                "type": "p",
+                "text": "Instead of moving, you can lend a value temporarily:"
+              },
+              {
+                "type": "code",
+                "text": "fn compute_hash(entry: &LogEntry) -> String {\n    // &LogEntry = \"I borrow this, I don't own it\"\n    // The caller still owns `entry` after this call\n    serde_json::to_string(entry).unwrap()\n}\n\nlet entry = LogEntry { /* ... */ };\nlet hash = compute_hash(&entry);  // lend entry\nprintln!(\"{:?}\", entry);  // ✓ entry still valid ; we only lent it"
+              },
+              {
+                "type": "h2",
+                "text": "Borrowing rules"
+              },
+              {
+                "type": "table",
+                "headers": ["Rule", "What it means"],
+                "rows": [
+                  [
+                    "Any number of &T (shared borrows)",
+                    "Many readers are fine simultaneously"
+                  ],
+                  [
+                    "Exactly one &mut T at a time",
+                    "One writer ; no readers while writing"
+                  ],
+                  [
+                    "Cannot mix both",
+                    "No reading while something is being mutated"
+                  ]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Clone ; explicit deep copy"
+              },
+              {
+                "type": "code",
+                "text": "let s1 = String::from(\"hello\");\nlet s2 = s1.clone();  // explicit copy ; both are valid\nprintln!(\"{} {}\", s1, s2);  // ✓ both work"
+              },
+              {
+                "type": "p",
+                "text": "In vaultlog, #[derive(Clone)] on LogEntry lets you call .clone() on any entry whenever you need a second independent copy."
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "When you hit borrow checker errors",
+                "text": "Read the error message carefully ; Rust's compiler tells you exactly what the problem is and often suggests the fix. The most common fix is either: pass a reference (&entry instead of entry), or clone when you genuinely need two owners (entry.clone())."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s7",
+          "num": "07",
+          "title": "Iterators & closures",
+          "desc": "Day 3 · storage.rs",
+          "tag": "Day 3 · src/storage.rs",
+          "tagColor": "day",
+          "content": {
+            "heading": "Iterators & closures",
+            "lead": "Rust's iterator methods look a lot like JavaScript's array methods ; .map(), .filter(), .for_each(). The main difference: they're lazy and need .collect().",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Closures ; like arrow functions"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript",
+                  "lang": "js",
+                  "code": "// Arrow function\nconst double = x => x * 2;\n[1,2,3].map(x => x * 2);"
+                },
+                "right": {
+                  "label": "Rust",
+                  "lang": "rs",
+                  "code": "// Closure ; pipes instead of arrows\nlet double = |x| x * 2;\nvec![1,2,3].iter().map(|x| x * 2);"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Iterators are lazy ; collect() runs them"
+              },
+              {
+                "type": "p",
+                "text": "In JS, .map() runs immediately. In Rust, iterator chains are lazy ; they build up a pipeline and do nothing until you call .collect():"
+              },
+              {
+                "type": "code",
+                "text": "// JS ; runs immediately\narr.filter(x => x > 0).map(x => x * 2);\n\n// Rust ; builds pipeline, runs only at .collect()\nlet result: Vec<i32> = arr\n    .iter()\n    .filter(|x| **x > 0)\n    .map(|x| x * 2)\n    .collect();  // ← this is where work happens"
+              },
+              {
+                "type": "h2",
+                "text": "storage.rs ; reading entries with iterators"
+              },
+              {
+                "type": "code",
+                "text": "pub fn read_all_entries()\n    -> Result<Vec<LogEntry>, Box<dyn Error>>\n{\n    let file = File::open(\"ledger.ndjson\")?;\n    let reader = BufReader::new(file);\n\n    let entries = reader\n        .lines()\n        .filter_map(|line| line.ok())       // skip error lines\n        .filter_map(|line|                    // skip bad JSON\n            serde_json::from_str(&line).ok())\n        .collect();                           // → Vec<LogEntry>\n\n    Ok(entries)\n}"
+              },
+              {
+                "type": "p",
+                "text": "filter_map is like .filter().map() combined ; it keeps only elements where the closure returns Some(value) and discards None. It's your go-to for fallible transformations."
+              },
+              {
+                "type": "h2",
+                "text": "Common iterator methods"
+              },
+              {
+                "type": "table",
+                "headers": ["JS", "Rust", "Note"],
+                "rows": [
+                  [".map(f)", ".map(|x| ...)", "Transform each element"],
+                  [".filter(f)", ".filter(|x| ...)", "Keep matching elements"],
+                  [
+                    ".forEach(f)",
+                    ".for_each(|x| ...)",
+                    "Side effects, no return"
+                  ],
+                  [".find(f)", ".find(|x| ...)", "Returns Option"],
+                  [".some(f)", ".any(|x| ...)", "Returns bool"],
+                  [".every(f)", ".all(|x| ...)", "Returns bool"],
+                  [".reduce(f)", ".fold(init, |acc, x| ...)", "Fold/reduce"],
+                  ["n/a", ".collect()", "Materialise into Vec/HashMap/etc"]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s8",
+          "num": "08",
+          "title": "Pattern matching",
+          "desc": "Day 4 · match, Commands",
+          "tag": "Day 4 · src/main.rs",
+          "tagColor": "day",
+          "content": {
+            "heading": "Pattern matching",
+            "lead": "match is Rust's supercharged switch statement. It's exhaustive ; the compiler forces you to handle every possible case. You'll use it constantly.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Basic match"
+              },
+              {
+                "type": "compare",
+                "left": {
+                  "label": "JavaScript switch",
+                  "lang": "js",
+                  "code": "switch(category) {\n  case \"asset\":\n    doAsset(); break;\n  case \"event\":\n    doEvent(); break;\n  default:\n    doOther();\n}"
+                },
+                "right": {
+                  "label": "Rust match",
+                  "lang": "rs",
+                  "code": "match category {\n    EntryCategory::Asset => {\n        do_asset();\n    }\n    EntryCategory::Event => {\n        do_event();\n    }\n    _ => do_other(),  // catch-all\n}"
+                }
+              },
+              {
+                "type": "h2",
+                "text": "Matching enums with data ; the CLI dispatcher"
+              },
+              {
+                "type": "p",
+                "text": "This is the heart of vaultlog's main.rs. Each Commands variant holds different data, and match extracts it:"
+              },
+              {
+                "type": "code",
+                "text": "match cli.command {\n    Commands::Add { description, category } => {\n        // description and category are extracted here\n        let entry = create_entry(description, category)?;\n        storage::append_entry(&entry)?;\n        println!(\"✓ Entry added\");\n    }\n    Commands::List => {\n        let entries = storage::read_all_entries()?;\n        for entry in &entries {\n            println!(\"{} | {}\", entry.timestamp, entry.description);\n        }\n    }\n    Commands::Verify => {\n        let entries = storage::read_all_entries()?;\n        if ledger::verify_chain(&entries) {\n            println!(\"✓ Chain integrity verified\");\n        } else {\n            println!(\"✗ Chain is broken!\");\n        }\n    }\n}"
+              },
+              {
+                "type": "h2",
+                "text": "if let ; matching a single variant"
+              },
+              {
+                "type": "p",
+                "text": "When you only care about one case, if let is cleaner than a full match:"
+              },
+              {
+                "type": "code",
+                "text": "// Full match ; verbose when you only care about Some\nmatch entries.last() {\n    Some(e) => println!(\"{}\", e.hash),\n    None => {}  // do nothing\n}\n\n// if let ; cleaner\nif let Some(e) = entries.last() {\n    println!(\"{}\", e.hash);\n}"
+              },
+              {
+                "type": "h2",
+                "text": "The Clap CLI derive pattern"
+              },
+              {
+                "type": "code",
+                "text": "#[derive(Parser)]\n#[command(name = \"vaultlog\")]\n#[command(about = \"Immutable hash-chained ledger\")]\nstruct Cli {\n    #[command(subcommand)]\n    command: Commands,\n}\n\n#[derive(Subcommand)]\nenum Commands {\n    /// Add a new entry to the ledger\n    Add {\n        #[arg(short, long)]\n        description: String,\n        #[arg(short, long)]\n        category: String,\n    },\n    /// List all entries\n    List,\n    /// Verify chain integrity\n    Verify,\n}"
+              },
+              {
+                "type": "p",
+                "text": "Clap reads those #[derive] and #[arg] annotations and generates a full CLI parser. The triple-slash comments (///) become help text."
+              }
+            ]
+          }
+        },
+        {
+          "id": "s9",
+          "num": "09",
+          "title": "Putting it together",
+          "desc": "Full vaultlog data flow",
+          "tag": "Day 4–5 · complete data flow",
+          "tagColor": "concept",
+          "content": {
+            "heading": "Putting it all together",
+            "lead": "Here's the full vaultlog data flow from CLI input to verified ledger ; every concept from every chapter in one picture.",
+            "sections": [
+              {
+                "type": "h2",
+                "text": "Complete main.rs"
+              },
+              {
+                "type": "code",
+                "text": "mod models;\nmod ledger;\nmod storage;\n\nuse clap::Parser;\nuse chrono::Utc;\nuse models::{LogEntry, EntryCategory};\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {\n    let cli = Cli::parse();\n\n    match cli.command {\n        Commands::Add { description, category } => {\n            let entries = storage::read_all_entries()\n                .unwrap_or_default();\n\n            let previous_hash = entries.last()\n                .map(|e| e.hash.clone())\n                .unwrap_or_else(|| \"0000000000000000\".to_string());\n\n            let mut entry = LogEntry {\n                id: uuid::Uuid::new_v4().to_string(),\n                timestamp: Utc::now(),\n                category: parse_category(&category),\n                description,\n                metadata: serde_json::json!({}),\n                previous_hash,\n                hash: String::new(),\n            };\n\n            entry.hash = ledger::compute_hash(&entry);\n            storage::append_entry(&entry)?;\n            println!(\"✓ Added: {}\", entry.id);\n        }\n        Commands::List => {\n            let entries = storage::read_all_entries()?;\n            for entry in &entries {\n                println!(\"[{}] {} ; {}\",\n                    entry.timestamp.format(\"%Y-%m-%d\"),\n                    entry.description,\n                    entry.id);\n            }\n        }\n        Commands::Verify => {\n            let entries = storage::read_all_entries()?;\n            if ledger::verify_chain(&entries) {\n                println!(\"✓ Chain verified ; {} entries\", entries.len());\n            } else {\n                println!(\"✗ Chain broken ; data was tampered with!\");\n            }\n        }\n    }\n    Ok(())\n}"
+              },
+              {
+                "type": "h2",
+                "text": "How it maps to REAL (your bigger project)"
+              },
+              {
+                "type": "table",
+                "headers": ["vaultlog", "REAL (next project)"],
+                "rows": [
+                  ["LogEntry struct", "PropertyEvent struct"],
+                  [
+                    "EntryCategory enum",
+                    "Acquisition, Transfer, ZoningChange..."
+                  ],
+                  ["Flat .ndjson file", "SQLite/PostgreSQL via sqlx"],
+                  ["CLI with Clap", "REST API with Axum"],
+                  ["verify_chain()", "Audit trail integrity check"],
+                  ["SHA-256 hash chain", "Same concept, immutable ledger"]
+                ]
+              },
+              {
+                "type": "h2",
+                "text": "Day 5 polish checklist"
+              },
+              {
+                "type": "list",
+                "items": [
+                  "Add the colored crate for terminal colours ; cargo add colored",
+                  "Handle the \"file not found\" case in read_all_entries gracefully (return empty vec)",
+                  "Write a solid README explaining the hash chain concept",
+                  "Push to GitHub ; this is real work worth showing",
+                  "Spend an hour writing down every Rust concept you used and how it maps to REAL"
+                ]
+              },
+              {
+                "type": "callout",
+                "variant": "tip",
+                "head": "You're not starting over when you build REAL",
+                "text": "Every pattern in vaultlog scales directly. The struct becomes a richer model. The flat file becomes a database. The CLI becomes an Axum REST API. The hash chain stays identical. You're expanding what you built ; not rewriting it."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
